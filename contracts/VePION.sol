@@ -26,6 +26,8 @@ contract VePION is
 
     address public PION;
 
+    address public treasury;
+
     address[] public tokensWhitelist;
     mapping(address => bool) public isTokenWhitelisted;
 
@@ -47,17 +49,24 @@ contract VePION is
     // Restricted Functions
     // ------------------------------------------------------------------------
 
-    function initialize(address _PION) public initializer {
+    function initialize(address _PION, address _treasury) public initializer {
         __ERC721_init("vePION", "vePION");
         __Pausable_init();
         __Ownable_init();
         __ERC721Burnable_init();
 
-        require(_PION != address(0), "Zero Address");
+        require(_PION != address(0) && _treasury != address(0), "Zero Address");
 
         PION = _PION;
+        treasury = _treasury;
+
+        // whitelist pion
         tokensWhitelist.push(PION);
         isTokenWhitelisted[PION] = true;
+
+        // whitelist contract address for transfering
+        transferWhitelist.push(address(this));
+        isTransferWhitelisted[address(this)] = true;
     }
 
     function pause() public onlyOwner {
@@ -90,6 +99,12 @@ contract VePION is
         }
     }
 
+    /// @notice sets treasury address
+    /// @param _treasury new treasury address
+    function setTreasury(address _treasury) external onlyOwner {
+        treasury = _treasury;
+    }
+
     // ------------------------------------------------------------------------
     // Internal Functions
     // ------------------------------------------------------------------------
@@ -101,8 +116,8 @@ contract VePION is
         uint256 tokenId,
         uint256 batchSize
     ) internal override whenNotPaused {
-        // check it's not a mint transaction
-        if (from != address(0)) {
+        // check it's not a mint or burn transaction
+        if (from != address(0) && to != address(0)) {
             require(
                 isTransferWhitelisted[from] || isTransferWhitelisted[to],
                 "Transfer Limited"
@@ -120,8 +135,8 @@ contract VePION is
     /// @param to receiver of the NFT
     /// @return Minted tokenId
     function mint(address to) public whenNotPaused returns (uint256) {
-        uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
+        uint256 tokenId = _tokenIdCounter.current();
         _safeMint(to, tokenId);
         return tokenId;
     }
@@ -136,11 +151,14 @@ contract VePION is
         address[] memory tokens,
         uint256[] memory amounts
     ) public whenNotPaused {
+        require(_ownerOf(tokenId) != address(0), "ERC721: invalid token ID");
+
         uint256 len = tokens.length;
         require(len == amounts.length, "Length Mismatch");
 
         uint256 receivedAmount;
         for (uint256 i; i < len; ++i) {
+            require(isTokenWhitelisted[tokens[i]], "Not Whitelisted");
             require(amounts[i] > 0, "Cannot Lock Zero Amount");
 
             if (tokens[i] == PION) {
@@ -148,19 +166,20 @@ contract VePION is
                 receivedAmount = amounts[i];
             } else {
                 receivedAmount = IERC20Upgradeable(tokens[i]).balanceOf(
-                    address(this)
+                    treasury
                 );
                 IERC20Upgradeable(tokens[i]).safeTransferFrom(
                     msg.sender,
-                    address(this),
+                    treasury,
                     amounts[i]
                 );
                 receivedAmount =
-                    IERC20Upgradeable(tokens[i]).balanceOf(address(this)) -
+                    IERC20Upgradeable(tokens[i]).balanceOf(treasury) -
                     receivedAmount;
             }
 
             lockedOf[tokenId][tokens[i]] += receivedAmount;
+            totalLocked[tokens[i]] += receivedAmount;
         }
     }
 
@@ -216,6 +235,7 @@ contract VePION is
         newTokenId = mint(msg.sender);
 
         for (uint256 i; i < len; ++i) {
+            require(lockedOf[tokenId][tokens[i]] >= amounts[i], "Insufficient Locked Amount");
             lockedOf[tokenId][tokens[i]] -= amounts[i];
             lockedOf[newTokenId][tokens[i]] += amounts[i];
         }

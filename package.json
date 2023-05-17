@@ -5,6 +5,7 @@
     "ts-node": "^10.9.1"
   },
   "dependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
     "@openzeppelin/contracts": "^4.8.3",
     "@openzeppelin/contracts-upgradeable": "^4.8.3",
     "hardhat-upgrades": "^0.0.0",
