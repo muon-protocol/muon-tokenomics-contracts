@@ -177,17 +177,17 @@ describe("vePION", function () {
     });
 
     it("Should not merge not owned NFTs", async function () {
-      // mint tokenIdA for user
+      // mint tokenIdA for admin
       await vePion.mintAndLock(
         [pion.address, token.address],
         [pionAmount, tokenAmount],
-        user.address
+        admin.address
       )
-      // mint tokenIdB for admin
+      // mint tokenIdB for user
       await vePion.mintAndLock(
         [token.address],
         [tokenAmount],
-        admin.address
+        user.address
       )
 
       // merge NFTs should fail

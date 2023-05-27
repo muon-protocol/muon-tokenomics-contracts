@@ -109,7 +109,7 @@ contract VePION is
     // Internal Functions
     // ------------------------------------------------------------------------
 
-    /// @notice transfer is limited to staking contract
+    /// @notice transfer is limited to whitelisted contracts
     function _beforeTokenTransfer(
         address from,
         address to,
@@ -198,14 +198,11 @@ contract VePION is
     }
 
     /// @notice merges two tokenId. Burns tokenIdA and add it's underlying assets to tokenIdB
-    /// @dev msg.sender should be owner of both tokenIdA and tokenIdB. tokenIdA and tokenIdB tier will be updated at the end
-    /// @param tokenIdA first tokenId to merge. Will be burnedd
+    /// @dev msg.sender should be owner of tokenIdA (which will be burned)
+    /// @param tokenIdA first tokenId to merge. Will be burned
     /// @param tokenIdB second tokenId to merge. It's underlying assets will increase
     function merge(uint256 tokenIdA, uint256 tokenIdB) external whenNotPaused {
-        require(
-            ownerOf(tokenIdA) == msg.sender && ownerOf(tokenIdB) == msg.sender,
-            "Not Owned"
-        );
+        require(ownerOf(tokenIdA) == msg.sender, "Not Owned");
 
         for (uint256 i; i < tokensWhitelist.length; ++i) {
             lockedOf[tokenIdB][tokensWhitelist[i]] += lockedOf[tokenIdA][
@@ -235,7 +232,10 @@ contract VePION is
         newTokenId = mint(msg.sender);
 
         for (uint256 i; i < len; ++i) {
-            require(lockedOf[tokenId][tokens[i]] >= amounts[i], "Insufficient Locked Amount");
+            require(
+                lockedOf[tokenId][tokens[i]] >= amounts[i],
+                "Insufficient Locked Amount"
+            );
             lockedOf[tokenId][tokens[i]] -= amounts[i];
             lockedOf[newTokenId][tokens[i]] += amounts[i];
         }
