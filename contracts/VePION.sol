@@ -12,6 +12,8 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 
 import "./interfaces/IPION.sol";
 
+// todo: add events
+
 contract VePION is
     Initializable,
     ERC721Upgradeable,
@@ -36,6 +38,9 @@ contract VePION is
 
     // NFT id => token address => locked amount
     mapping(uint256 => mapping(address => uint256)) public lockedOf;
+
+    // NFT id => mint timestamp
+    mapping(uint256 => uint256) public mintedAt;
 
     // token address => total locked amount
     mapping(address => uint256) public totalLocked;
@@ -138,6 +143,7 @@ contract VePION is
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
         _safeMint(to, tokenId);
+        mintedAt[tokenId] = block.timestamp;
         return tokenId;
     }
 
@@ -211,6 +217,11 @@ contract VePION is
             lockedOf[tokenIdA][tokensWhitelist[i]] = 0;
         }
 
+        // set mintedAt of the tokenIdB to the oldest mint timestamp of tokenIdA and tokenIdB
+        if (mintedAt[tokenIdA] < mintedAt[tokenIdB]) {
+            mintedAt[tokenIdB] = mintedAt[tokenIdA];
+        }
+
         burn(tokenIdA);
     }
 
@@ -230,6 +241,9 @@ contract VePION is
         require(len == amounts.length, "Length Mismatch");
 
         newTokenId = mint(msg.sender);
+
+        // set new token mint timestamp to the origin token mint timestamp
+        mintedAt[newTokenId] = mintedAt[tokenId];
 
         for (uint256 i; i < len; ++i) {
             require(
