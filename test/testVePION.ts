@@ -254,11 +254,33 @@ describe("vePION", function () {
   })
 
   describe("Transfer", async function () {
-    it("Should whitelist transfers", async function () { });
+    it("Should whitelist transfers", async function () {
+      await vePion.connect(admin).whitelistTransferFor([user.address])
+      expect(await vePion.isTransferWhitelisted(user.address)).eq(true)
+    });
 
-    it("Should whitelisted transfers send/receive NFTs", async function () { });
+    it("Should whitelisted transfers send/receive NFTs", async function () {
+      const tokenId = 1
+      // minte NFT
+      await vePion.mint(user.address)
 
-    it("Shouldn't not whitelisted transfers send/receive NFTs", async function () { });
+      // whitelist user
+      await vePion.connect(admin).whitelistTransferFor([user.address])
+
+      // transfer from user to admin
+      await vePion["safeTransferFrom(address,address,uint256)"](user.address, admin.address, tokenId)
+      expect(await vePion.ownerOf(tokenId)).eq(admin.address)
+
+      // transfer from admin to user
+      await vePion.connect(admin)["safeTransferFrom(address,address,uint256)"](admin.address, user.address, tokenId)
+      expect(await vePion.ownerOf(tokenId)).eq(user.address)
+    });
+
+    it("Shouldn't not whitelisted transfers send/receive NFTs", async function () {
+      const tokenId = 1
+      await vePion.mint(user.address)
+      await expect(vePion["safeTransferFrom(address,address,uint256)"](user.address, admin.address, tokenId)).to.be.revertedWith("Transfer Limited")
+    });
   })
 
 })
