@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
@@ -21,10 +20,9 @@ contract VePION is
     OwnableUpgradeable,
     ERC721BurnableUpgradeable
 {
-    using CountersUpgradeable for CountersUpgradeable.Counter;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    CountersUpgradeable.Counter private _tokenIdCounter;
+    uint256 public _tokenIdCounter;
 
     address public PION;
 
@@ -69,7 +67,7 @@ contract VePION is
         tokensWhitelist.push(PION);
         isTokenWhitelisted[PION] = true;
 
-        // whitelist contract address for transfering
+        // whitelist contract address for transferring
         transferWhitelist.push(address(this));
         isTransferWhitelisted[address(this)] = true;
     }
@@ -87,6 +85,7 @@ contract VePION is
     /// @param tokens list of tokens to be whitelisted
     function whitelistTokens(address[] memory tokens) external onlyOwner {
         for (uint256 i; i < tokens.length; ++i) {
+            require(isTokenWhitelisted[tokens[i]] == false, "Already Whitelisted");
             tokensWhitelist.push(tokens[i]);
             isTokenWhitelisted[tokens[i]] = true;
         }
@@ -99,6 +98,10 @@ contract VePION is
         address[] memory addresses
     ) external onlyOwner {
         for (uint256 i; i < addresses.length; ++i) {
+            require(
+                isTransferWhitelisted[addresses[i]] == false,
+                "Already Whitelisted"
+            );
             transferWhitelist.push(addresses[i]);
             isTransferWhitelisted[addresses[i]] = true;
         }
@@ -107,6 +110,7 @@ contract VePION is
     /// @notice sets treasury address
     /// @param _treasury new treasury address
     function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Zero Address");
         treasury = _treasury;
     }
 
@@ -140,8 +144,8 @@ contract VePION is
     /// @param to receiver of the NFT
     /// @return Minted tokenId
     function mint(address to) public whenNotPaused returns (uint256) {
-        _tokenIdCounter.increment();
-        uint256 tokenId = _tokenIdCounter.current();
+        _tokenIdCounter += 1;
+        uint256 tokenId = _tokenIdCounter;
         _safeMint(to, tokenId);
         mintedAt[tokenId] = block.timestamp;
         return tokenId;
@@ -209,12 +213,15 @@ contract VePION is
     /// @param tokenIdB second tokenId to merge. It's underlying assets will increase
     function merge(uint256 tokenIdA, uint256 tokenIdB) external whenNotPaused {
         require(ownerOf(tokenIdA) == msg.sender, "Not Owned");
+        require(tokenIdA != tokenIdB, "Same Token ID");
 
         for (uint256 i; i < tokensWhitelist.length; ++i) {
-            lockedOf[tokenIdB][tokensWhitelist[i]] += lockedOf[tokenIdA][
-                tokensWhitelist[i]
-            ];
-            lockedOf[tokenIdA][tokensWhitelist[i]] = 0;
+            if (lockedOf[tokenIdA][tokensWhitelist[i]] != 0) {
+                lockedOf[tokenIdB][tokensWhitelist[i]] += lockedOf[tokenIdA][
+                    tokensWhitelist[i]
+                ];
+                lockedOf[tokenIdA][tokensWhitelist[i]] = 0;
+            }
         }
 
         // set mintedAt of the tokenIdB to the oldest mint timestamp of tokenIdA and tokenIdB
@@ -222,7 +229,7 @@ contract VePION is
             mintedAt[tokenIdB] = mintedAt[tokenIdA];
         }
 
-        burn(tokenIdA);
+        _burn(tokenIdA);
     }
 
     /// @notice splits NFT into two NFTs
