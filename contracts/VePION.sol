@@ -6,16 +6,18 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import "./interfaces/IPION.sol";
 
-contract VePION is
+contract BonPION is
     Initializable,
     ERC721Upgradeable,
     PausableUpgradeable,
     AccessControlUpgradeable,
+    OwnableUpgradeable,
     ERC721BurnableUpgradeable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -45,7 +47,6 @@ contract VePION is
 
     bool isPublicTransferEnabled;
 
-    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant TRANSFERABLE_ADDRESS_ROLE =
         keccak256("TRANSFERABLE_ADDRESS_ROLE");
 
@@ -54,10 +55,11 @@ contract VePION is
     // ------------------------------------------------------------------------
 
     function initialize(address _PION, address _treasury) public initializer {
-        __ERC721_init("vePION", "vePION");
+        __ERC721_init("bonPION", "bonPION");
         __Pausable_init();
         __ERC721Burnable_init();
         __AccessControl_init();
+        __Ownable_init();
 
         require(_PION != address(0) && _treasury != address(0), "Zero Address");
 
@@ -71,23 +73,20 @@ contract VePION is
         isPublicTransferEnabled = false;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MANAGER_ROLE, msg.sender);
     }
 
-    function pause() public onlyRole(MANAGER_ROLE) {
+    function pause() public onlyOwner {
         _pause();
     }
 
-    function unpause() public onlyRole(MANAGER_ROLE) {
+    function unpause() public onlyOwner {
         _unpause();
     }
 
     /// @notice whitelists tokens
     /// @dev only whitelisted tokens can be locked
     /// @param tokens list of tokens to be whitelisted
-    function whitelistTokens(
-        address[] memory tokens
-    ) external onlyRole(MANAGER_ROLE) {
+    function whitelistTokens(address[] memory tokens) external onlyOwner {
         for (uint256 i; i < tokens.length; ++i) {
             require(
                 isTokenWhitelisted[tokens[i]] == false,
@@ -96,21 +95,21 @@ contract VePION is
             tokensWhitelist.push(tokens[i]);
             isTokenWhitelisted[tokens[i]] = true;
         }
-        emit whitelistTokensUpdated(tokens);
+        emit WhitelistTokensUpdated(tokens);
     }
 
     /// @notice enable/disable public transfer
     /// @param _isPublicTransferEnabled the status of public transfer
     function setPublicTransfer(
         bool _isPublicTransferEnabled
-    ) external onlyRole(MANAGER_ROLE) {
+    ) external onlyOwner {
         isPublicTransferEnabled = _isPublicTransferEnabled;
         emit PublicTransferStatusUpdated(_isPublicTransferEnabled);
     }
 
     /// @notice sets treasury address
     /// @param _treasury new treasury address
-    function setTreasury(address _treasury) external onlyRole(MANAGER_ROLE) {
+    function setTreasury(address _treasury) external onlyOwner {
         require(_treasury != address(0), "Zero Address");
         treasury = _treasury;
         emit TreasuryUpdated(_treasury);
@@ -127,16 +126,14 @@ contract VePION is
         uint256 tokenId,
         uint256 batchSize
     ) internal override whenNotPaused {
-        // check it's not a mint or burn transaction
-        if (from != address(0) && to != address(0)) {
-            require(
+        require(
+            from == address(0) ||
+                to == address(0) ||
                 isPublicTransferEnabled ||
-                    hasRole(TRANSFERABLE_ADDRESS_ROLE, from) ||
-                    hasRole(TRANSFERABLE_ADDRESS_ROLE, to),
-                "Transfer is Limited"
-            );
-        }
-
+                hasRole(TRANSFERABLE_ADDRESS_ROLE, from) ||
+                hasRole(TRANSFERABLE_ADDRESS_ROLE, to),
+            "Transfer is Limited"
+        );
         super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
 
@@ -316,7 +313,7 @@ contract VePION is
         address[] tokens,
         uint256[] amounts
     );
-    event whitelistTokensUpdated(address[] tokens);
+    event WhitelistTokensUpdated(address[] tokens);
     event PublicTransferStatusUpdated(bool publicTransferStatus);
     event TreasuryUpdated(address treasury);
 }

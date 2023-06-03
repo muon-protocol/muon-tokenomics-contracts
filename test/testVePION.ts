@@ -1,17 +1,15 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { PION, TestToken, VePION } from "../typechain-types";
+import { PION, TestToken, BonPION } from "../typechain-types";
 import { MAX_UINT, deployTestToken, testDeployLocally } from "../scripts/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-describe("vePION", function () {
-  let pion: PION, vePion: VePION, treasury: string, token: TestToken;
+describe("bonPION", function () {
+  let pion: PION, bonPion: BonPION, treasury: string, token: TestToken;
   let admin: SignerWithAddress, user: SignerWithAddress;
 
-  let MANAGER_ROLE: string,
-    TRANSFERABLE_ADDRESS_ROLE: string,
-    DEFAULT_ADMIN_ROLE: string;
+  let TRANSFERABLE_ADDRESS_ROLE: string, DEFAULT_ADMIN_ROLE: string;
 
   before(async () => {
     [admin, user] = await ethers.getSigners();
@@ -20,14 +18,13 @@ describe("vePION", function () {
   beforeEach(async () => {
     const contracts = await loadFixture(testDeployLocally);
     pion = contracts.pion.connect(user);
-    vePion = contracts.vePion.connect(user);
+    bonPion = contracts.bonPion.connect(user);
     treasury = contracts.treasury;
 
     token = (await loadFixture(deployTestToken)).connect(user);
 
-    MANAGER_ROLE = await vePion.MANAGER_ROLE();
-    TRANSFERABLE_ADDRESS_ROLE = await vePion.TRANSFERABLE_ADDRESS_ROLE();
-    DEFAULT_ADMIN_ROLE = await vePion.DEFAULT_ADMIN_ROLE();
+    TRANSFERABLE_ADDRESS_ROLE = await bonPion.TRANSFERABLE_ADDRESS_ROLE();
+    DEFAULT_ADMIN_ROLE = await bonPion.DEFAULT_ADMIN_ROLE();
   });
 
   describe("Mint and Lock", async function () {
@@ -41,35 +38,34 @@ describe("vePION", function () {
     });
 
     it("Should not whitelist tokens by user", async function () {
-      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${MANAGER_ROLE}`;
       await expect(
-        vePion.connect(user).whitelistTokens([token.address])
-      ).to.be.revertedWith(revertMSG);
+        bonPion.connect(user).whitelistTokens([token.address])
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("Should whitelist tokens by admin", async function () {
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
-      expect(await vePion.isTokenWhitelisted(token.address)).eq(true);
-      expect(await vePion.isTokenWhitelisted(pion.address)).eq(true);
+      expect(await bonPion.isTokenWhitelisted(token.address)).eq(true);
+      expect(await bonPion.isTokenWhitelisted(pion.address)).eq(true);
     });
 
     it("Should not whitelist tokens again", async function () {
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
-      expect(await vePion.isTokenWhitelisted(token.address)).eq(true);
-      expect(await vePion.isTokenWhitelisted(pion.address)).eq(true);
+      expect(await bonPion.isTokenWhitelisted(token.address)).eq(true);
+      expect(await bonPion.isTokenWhitelisted(pion.address)).eq(true);
 
       await expect(
-        vePion.connect(admin).whitelistTokens([token.address])
+        bonPion.connect(admin).whitelistTokens([token.address])
       ).to.be.revertedWith("Already Whitelisted");
     });
 
     it("Should mint NFT", async function () {
-      const tokenId = await vePion.callStatic.mint(user.address);
-      await vePion.mint(user.address);
+      const tokenId = await bonPion.callStatic.mint(user.address);
+      await bonPion.mint(user.address);
       expect(tokenId).eq(1);
-      expect(await vePion.ownerOf(tokenId)).eq(user.address);
+      expect(await bonPion.ownerOf(tokenId)).eq(user.address);
     });
 
     it("Should lock whitelisted tokens", async function () {
@@ -78,21 +74,21 @@ describe("vePION", function () {
       const tokenAmount = ethers.utils.parseEther("200");
 
       // whitelist token
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint an NFT for user
-      await vePion.mint(user.address);
+      await bonPion.mint(user.address);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, pionAmount);
       await token.connect(admin).mint(user.address, tokenAmount);
 
       // approve tokens
-      await pion.approve(vePion.address, pionAmount);
-      await token.approve(vePion.address, tokenAmount);
+      await pion.approve(bonPion.address, pionAmount);
+      await token.approve(bonPion.address, tokenAmount);
 
       // lock tokens
-      await vePion.lock(
+      await bonPion.lock(
         tokenId,
         [pion.address, token.address],
         [pionAmount, tokenAmount]
@@ -105,93 +101,102 @@ describe("vePION", function () {
       expect(await token.balanceOf(treasury)).eq(tokenAmount);
 
       // NFT locked amounts should be increased
-      expect(await vePion.lockedOf(tokenId, pion.address)).eq(pionAmount);
-      expect(await vePion.lockedOf(tokenId, token.address)).eq(tokenAmount);
+      expect(await bonPion.lockedOf(tokenId, pion.address)).eq(pionAmount);
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(tokenAmount);
 
       // total locked should be increased
-      expect(await vePion.totalLocked(pion.address)).eq(pionAmount);
-      expect(await vePion.totalLocked(token.address)).eq(tokenAmount);
+      expect(await bonPion.totalLocked(pion.address)).eq(pionAmount);
+      expect(await bonPion.totalLocked(token.address)).eq(tokenAmount);
     });
 
-    // it("Should not lock underlie NFTs owned by other", async function () {
-    //   const tokenId = await vePion.callStatic.mint(user.address)
-    //   await vePion.mint(admin.address)
-    //   const tokenAmount = ethers.utils.parseEther('200')
+    it("Should lock underlie NFTs owned by other", async function () {
+      const tokenId = await bonPion.callStatic.mint(user.address);
 
-    //   await vePion.connect(admin).whitelistTokens([token.address])
+      await bonPion.mint(admin.address);
+      const tokenAmount = ethers.utils.parseEther("200");
 
-    //   // mint required token for user
-    //   await token.connect(admin).mint(user.address, tokenAmount)
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
-    //   // approve token
-    //   await token.approve(vePion.address, tokenAmount)
+      // mint required token for user
+      await token.connect(admin).mint(user.address, tokenAmount);
+      await pion.connect(admin).mint(user.address, tokenAmount.mul(3));
 
-    //   // lock tokens
-    //   await expect(vePion.lock(
-    //     tokenId,
-    //     [token.address],
-    //     [tokenAmount]
-    //   )).to.be.revertedWith("")
+      // approve tokens
+      await token.connect(user).approve(bonPion.address, tokenAmount);
+      await pion.connect(user).approve(bonPion.address, tokenAmount.mul(3));
 
-    //   // token should be transfered to treasury
-    //   expect(await token.balanceOf(treasury)).eq(0)
+      // lock tokens
+      await bonPion
+        .connect(user)
+        .lock(
+          tokenId,
+          [token.address, pion.address],
+          [tokenAmount, tokenAmount.mul(2)]
+        );
 
-    //   // NFT locked amounts should be increased
-    //   expect(await vePion.lockedOf(tokenId, pion.address)).eq(0)
-    //   expect(await vePion.lockedOf(tokenId, token.address)).eq(0)
+      // token should be transfered to treasury
+      expect(await token.balanceOf(treasury)).eq(tokenAmount);
 
-    //   // total locked should be increased
-    //   expect(await vePion.totalLocked(pion.address)).eq(0)
-    //   expect(await vePion.totalLocked(token.address)).eq(0)
+      // pion should be burned
+      expect(await pion.totalSupply()).eq(tokenAmount.mul(1));
 
-    // });
+      // NFT locked amounts should be increased
+      expect(await bonPion.lockedOf(tokenId, pion.address)).eq(
+        tokenAmount.mul(2)
+      );
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(tokenAmount);
+
+      // total locked should be increased
+      expect(await bonPion.totalLocked(pion.address)).eq(tokenAmount.mul(2));
+      expect(await bonPion.totalLocked(token.address)).eq(tokenAmount);
+    });
 
     it("Should not lock for address 0", async function () {
       const tokenAmount = ethers.utils.parseEther("200");
       const zeroAddress = ethers.constants.AddressZero;
 
       // whitelist token
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint required tokens for user
       await token.connect(admin).mint(user.address, tokenAmount);
 
       // approve tokens
-      await token.approve(vePion.address, tokenAmount);
+      await token.approve(bonPion.address, tokenAmount);
 
       await expect(
-        vePion.lock(zeroAddress, [token.address], [tokenAmount])
+        bonPion.lock(zeroAddress, [token.address], [tokenAmount])
       ).to.be.revertedWith("ERC721: invalid token ID");
     });
 
     it("Should not lock zero amount tokens or tokens with mismatched lists", async function () {
-      const tokenId = await vePion.callStatic.mint(user.address);
-      await vePion.mint(admin.address);
+      const tokenId = await bonPion.callStatic.mint(user.address);
+      await bonPion.mint(admin.address);
       const pionAmount = ethers.utils.parseEther("100");
       const tokenAmount = ethers.utils.parseEther("200");
 
       // whitelist token
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, pionAmount);
       await token.connect(admin).mint(user.address, tokenAmount);
 
       // approve tokens
-      await pion.approve(vePion.address, pionAmount);
-      await token.approve(vePion.address, tokenAmount);
+      await pion.approve(bonPion.address, pionAmount);
+      await token.approve(bonPion.address, tokenAmount);
 
       // lock tokens
       await expect(
-        vePion.lock(tokenId, [pion.address, token.address], [pionAmount])
+        bonPion.lock(tokenId, [pion.address, token.address], [pionAmount])
       ).to.be.revertedWith("Length Mismatch");
 
       await expect(
-        vePion.lock(tokenId, [pion.address, token.address], [pionAmount, 0])
+        bonPion.lock(tokenId, [pion.address, token.address], [pionAmount, 0])
       ).to.be.revertedWith("Cannot Lock Zero Amount");
 
       await expect(
-        vePion.lock(tokenId, [pion.address, token.address], [0, tokenAmount])
+        bonPion.lock(tokenId, [pion.address, token.address], [0, tokenAmount])
       ).to.be.revertedWith("Cannot Lock Zero Amount");
     });
 
@@ -201,18 +206,18 @@ describe("vePION", function () {
       const tokenAmount = ethers.utils.parseEther("200");
 
       // whitelist token
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, pionAmount);
       await token.connect(admin).mint(user.address, tokenAmount);
 
       // approve tokens
-      await pion.approve(vePion.address, pionAmount);
-      await token.approve(vePion.address, tokenAmount);
+      await pion.approve(bonPion.address, pionAmount);
+      await token.approve(bonPion.address, tokenAmount);
 
       // mint NFT and lock tokens
-      await vePion.mintAndLock(
+      await bonPion.mintAndLock(
         [pion.address, token.address],
         [pionAmount, tokenAmount],
         user.address
@@ -225,17 +230,17 @@ describe("vePION", function () {
       expect(await token.balanceOf(treasury)).eq(tokenAmount);
 
       // NFT locked amounts should be increased
-      expect(await vePion.lockedOf(tokenId, pion.address)).eq(pionAmount);
-      expect(await vePion.lockedOf(tokenId, token.address)).eq(tokenAmount);
+      expect(await bonPion.lockedOf(tokenId, pion.address)).eq(pionAmount);
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(tokenAmount);
 
       // total locked should be increased
-      expect(await vePion.totalLocked(pion.address)).eq(pionAmount);
-      expect(await vePion.totalLocked(token.address)).eq(tokenAmount);
+      expect(await bonPion.totalLocked(pion.address)).eq(pionAmount);
+      expect(await bonPion.totalLocked(token.address)).eq(tokenAmount);
     });
 
     it("Shouldn't lock not whitelisted tokens", async function () {
       await expect(
-        vePion.mintAndLock(
+        bonPion.mintAndLock(
           [token.address],
           [ethers.utils.parseEther("1")],
           user.address
@@ -253,53 +258,53 @@ describe("vePION", function () {
 
     beforeEach(async () => {
       // whitelist token
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, MAX_UINT);
       await token.connect(admin).mint(user.address, MAX_UINT);
 
-      // approve tokens to vePion
-      await pion.approve(vePion.address, MAX_UINT);
-      await token.approve(vePion.address, MAX_UINT);
+      // approve tokens to bonPion
+      await pion.approve(bonPion.address, MAX_UINT);
+      await token.approve(bonPion.address, MAX_UINT);
     });
 
     it("Should merge NFTs", async function () {
       // mint and lock NFTs
-      await vePion.mintAndLock(
+      await bonPion.mintAndLock(
         [pion.address, token.address],
         [pionAmount, tokenAmount],
         user.address
       );
-      await vePion.mintAndLock([token.address], [tokenAmount], user.address);
+      await bonPion.mintAndLock([token.address], [tokenAmount], user.address);
 
       // merge NFTs
-      await vePion.merge(tokenIdA, tokenIdB);
+      await bonPion.merge(tokenIdA, tokenIdB);
 
       // tokenIdA should be burnt
-      await expect(vePion.ownerOf(tokenIdA)).to.be.revertedWith(
+      await expect(bonPion.ownerOf(tokenIdA)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
 
       // tokenIdB locked amounts should be increased
-      expect(await vePion.lockedOf(tokenIdB, pion.address)).eq(pionAmount);
-      expect(await vePion.lockedOf(tokenIdB, token.address)).eq(
+      expect(await bonPion.lockedOf(tokenIdB, pion.address)).eq(pionAmount);
+      expect(await bonPion.lockedOf(tokenIdB, token.address)).eq(
         tokenAmount.mul(2)
       );
     });
 
     it("Should not merge not owned NFTs", async function () {
       // mint tokenIdA for admin
-      await vePion.mintAndLock(
+      await bonPion.mintAndLock(
         [pion.address, token.address],
         [pionAmount, tokenAmount],
         admin.address
       );
       // mint tokenIdB for user
-      await vePion.mintAndLock([token.address], [tokenAmount], user.address);
+      await bonPion.mintAndLock([token.address], [tokenAmount], user.address);
 
       // merge NFTs should fail
-      await expect(vePion.merge(tokenIdA, tokenIdB)).to.be.revertedWith(
+      await expect(bonPion.merge(tokenIdA, tokenIdB)).to.be.revertedWith(
         "Not Owned"
       );
     });
@@ -310,19 +315,19 @@ describe("vePION", function () {
 
       for (let i = 0; i < pionSplitAmounts.length; i++) {
         // mint NFT
-        const tokenId = await vePion.callStatic.mintAndLock(
+        const tokenId = await bonPion.callStatic.mintAndLock(
           [pion.address, token.address],
           [pionAmount, tokenAmount],
           user.address
         );
-        await vePion.mintAndLock(
+        await bonPion.mintAndLock(
           [pion.address, token.address],
           [pionAmount, tokenAmount],
           user.address
         );
 
         // split NFT
-        await vePion.split(
+        await bonPion.split(
           tokenId,
           [pion.address, token.address],
           [pionSplitAmounts[i], tokenSplitAmounts[i]]
@@ -330,21 +335,21 @@ describe("vePION", function () {
         const newTokenId = tokenId.add(1);
 
         // tokenId locked amounts should be decreased
-        expect(await vePion.lockedOf(tokenId, pion.address)).eq(
+        expect(await bonPion.lockedOf(tokenId, pion.address)).eq(
           pionAmount.sub(pionSplitAmounts[i])
         );
-        expect(await vePion.lockedOf(tokenId, token.address)).eq(
+        expect(await bonPion.lockedOf(tokenId, token.address)).eq(
           tokenAmount.sub(tokenSplitAmounts[i])
         );
 
         // newTokenId should be minted
-        expect(await vePion.ownerOf(newTokenId)).eq(user.address);
+        expect(await bonPion.ownerOf(newTokenId)).eq(user.address);
 
         // newTokenId locked amounts should be correct
-        expect(await vePion.lockedOf(newTokenId, pion.address)).eq(
+        expect(await bonPion.lockedOf(newTokenId, pion.address)).eq(
           pionSplitAmounts[i]
         );
-        expect(await vePion.lockedOf(newTokenId, token.address)).eq(
+        expect(await bonPion.lockedOf(newTokenId, token.address)).eq(
           tokenSplitAmounts[i]
         );
       }
@@ -354,7 +359,7 @@ describe("vePION", function () {
       const tokenId = 1;
 
       // mint NFT
-      await vePion.mintAndLock(
+      await bonPion.mintAndLock(
         [pion.address, token.address],
         [pionAmount, tokenAmount],
         user.address
@@ -362,7 +367,7 @@ describe("vePION", function () {
 
       // split NFT
       await expect(
-        vePion.split(
+        bonPion.split(
           tokenId,
           [pion.address, token.address],
           [pionAmount, tokenAmount.add(1)]
@@ -373,10 +378,10 @@ describe("vePION", function () {
 
   describe("Transfer", async function () {
     it("Should whitelist transfers by admin", async function () {
-      await vePion
+      await bonPion
         .connect(admin)
         .grantRole(TRANSFERABLE_ADDRESS_ROLE, user.address);
-      expect(await vePion.hasRole(TRANSFERABLE_ADDRESS_ROLE, user.address)).eq(
+      expect(await bonPion.hasRole(TRANSFERABLE_ADDRESS_ROLE, user.address)).eq(
         true
       );
     });
@@ -384,44 +389,44 @@ describe("vePION", function () {
     it("Should whitelist transfers by user", async function () {
       const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${DEFAULT_ADMIN_ROLE}`;
       await expect(
-        vePion.connect(user).grantRole(TRANSFERABLE_ADDRESS_ROLE, user.address)
+        bonPion.connect(user).grantRole(TRANSFERABLE_ADDRESS_ROLE, user.address)
       ).to.be.revertedWith(revertMSG);
     });
 
     it("Should whitelisted transfers send/receive NFTs", async function () {
       const tokenId = 1;
       // minte NFT
-      await vePion.mint(user.address);
+      await bonPion.mint(user.address);
 
       // whitelist user
-      await vePion
+      await bonPion
         .connect(admin)
         .grantRole(TRANSFERABLE_ADDRESS_ROLE, user.address);
 
       // transfer from user to admin
-      await vePion["safeTransferFrom(address,address,uint256)"](
+      await bonPion["safeTransferFrom(address,address,uint256)"](
         user.address,
         admin.address,
         tokenId
       );
-      expect(await vePion.ownerOf(tokenId)).eq(admin.address);
+      expect(await bonPion.ownerOf(tokenId)).eq(admin.address);
 
       // transfer from admin to user
-      await vePion
+      await bonPion
         .connect(admin)
         ["safeTransferFrom(address,address,uint256)"](
           admin.address,
           user.address,
           tokenId
         );
-      expect(await vePion.ownerOf(tokenId)).eq(user.address);
+      expect(await bonPion.ownerOf(tokenId)).eq(user.address);
     });
 
     it("Shouldn't non-whitelisted transfers send/receive NFTs", async function () {
       const tokenId = 1;
-      await vePion.mint(user.address);
+      await bonPion.mint(user.address);
       await expect(
-        vePion["safeTransferFrom(address,address,uint256)"](
+        bonPion["safeTransferFrom(address,address,uint256)"](
           user.address,
           admin.address,
           tokenId
@@ -429,37 +434,36 @@ describe("vePION", function () {
       ).to.be.revertedWith("Transfer is Limited");
     });
 
-    it("Shouldn't not allow anyone but manager enable public transfer", async function () {
-      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${MANAGER_ROLE}`;
+    it("Shouldn't not allow anyone but admin enable public transfer", async function () {
       await expect(
-        vePion.connect(user).setPublicTransfer(true)
-      ).to.be.revertedWith(revertMSG);
+        bonPion.connect(user).setPublicTransfer(true)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("Should non-whitelisted transfers send/receive NFTs when public transfer is enabled", async function () {
       const tokenId = 1;
       // minte NFT
-      await vePion.mint(user.address);
+      await bonPion.mint(user.address);
 
-      await vePion.connect(admin).setPublicTransfer(true);
+      await bonPion.connect(admin).setPublicTransfer(true);
 
       // transfer from user to admin
-      await vePion["safeTransferFrom(address,address,uint256)"](
+      await bonPion["safeTransferFrom(address,address,uint256)"](
         user.address,
         admin.address,
         tokenId
       );
-      expect(await vePion.ownerOf(tokenId)).eq(admin.address);
+      expect(await bonPion.ownerOf(tokenId)).eq(admin.address);
 
       // transfer from admin to user
-      await vePion
+      await bonPion
         .connect(admin)
         ["safeTransferFrom(address,address,uint256)"](
           admin.address,
           user.address,
           tokenId
         );
-      expect(await vePion.ownerOf(tokenId)).eq(user.address);
+      expect(await bonPion.ownerOf(tokenId)).eq(user.address);
     });
   });
 
@@ -479,19 +483,19 @@ describe("vePION", function () {
       await expect(pion.connect(user).unpause()).to.be.revertedWith(revertMSG);
     });
 
-    it("Should not pause and unpause VePION by user", async function () {
-      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${MANAGER_ROLE}`;
-      await expect(vePion.connect(user).pause()).to.be.revertedWith(revertMSG);
+    it("Should not pause and unpause bonPION by user", async function () {
+      await expect(bonPion.connect(user).pause()).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
 
-      await vePion.connect(admin).pause();
+      await bonPion.connect(admin).pause();
 
-      await expect(vePion.connect(user).unpause()).to.be.revertedWith(
-        revertMSG
+      await expect(bonPion.connect(user).unpause()).to.be.revertedWith(
+        "Ownable: caller is not the owner"
       );
     });
 
     it("Should pause and unpause PION", async function () {
-      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${MANAGER_ROLE}`;
       const pionAmount = ethers.utils.parseEther("100");
 
       await pion.connect(admin).mint(user.address, pionAmount);
@@ -523,46 +527,46 @@ describe("vePION", function () {
       expect(await pion.connect(user).balanceOf(user.address)).eq(0);
     });
 
-    it("Should pause and unpause VePION", async function () {
-      const tokenId = await vePion.callStatic.mint(user.address);
-      await vePion.mint(user.address);
-      expect(await vePion.ownerOf(tokenId)).eq(user.address);
+    it("Should pause and unpause bonPION", async function () {
+      const tokenId = await bonPion.callStatic.mint(user.address);
+      await bonPion.mint(user.address);
+      expect(await bonPion.ownerOf(tokenId)).eq(user.address);
 
-      await vePion.connect(admin).pause();
+      await bonPion.connect(admin).pause();
 
-      await expect(vePion.connect(user).mint(user.address)).to.be.revertedWith(
+      await expect(bonPion.connect(user).mint(user.address)).to.be.revertedWith(
         "Pausable: paused"
       );
-      await vePion
+      await bonPion
         .connect(admin)
         .grantRole(TRANSFERABLE_ADDRESS_ROLE, user.address);
       await expect(
-        vePion["safeTransferFrom(address,address,uint256)"](
+        bonPion["safeTransferFrom(address,address,uint256)"](
           user.address,
           admin.address,
           tokenId
         )
       ).to.be.revertedWith("Pausable: paused");
-      await expect(vePion.connect(user).burn(tokenId)).to.be.revertedWith(
+      await expect(bonPion.connect(user).burn(tokenId)).to.be.revertedWith(
         "Pausable: paused"
       );
 
-      await vePion.connect(admin).unpause();
+      await bonPion.connect(admin).unpause();
 
-      const tokenId2 = await vePion.callStatic.mint(user.address);
-      await vePion.mint(user.address);
-      expect(await vePion.ownerOf(tokenId2)).eq(user.address);
+      const tokenId2 = await bonPion.callStatic.mint(user.address);
+      await bonPion.mint(user.address);
+      expect(await bonPion.ownerOf(tokenId2)).eq(user.address);
 
-      await vePion["safeTransferFrom(address,address,uint256)"](
+      await bonPion["safeTransferFrom(address,address,uint256)"](
         user.address,
         admin.address,
         tokenId
       );
-      expect(await vePion.ownerOf(tokenId)).eq(admin.address);
-      expect(await vePion.ownerOf(tokenId2)).eq(user.address);
+      expect(await bonPion.ownerOf(tokenId)).eq(admin.address);
+      expect(await bonPion.ownerOf(tokenId2)).eq(user.address);
 
-      await vePion.connect(user).burn(tokenId2);
-      await expect(vePion.ownerOf(tokenId2)).to.be.revertedWith(
+      await bonPion.connect(user).burn(tokenId2);
+      await expect(bonPion.ownerOf(tokenId2)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
     });
@@ -573,25 +577,25 @@ describe("vePION", function () {
       const tokenAmount = ethers.utils.parseEther("200");
 
       // whitelist token
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint an NFT for user
-      await vePion.mint(user.address);
+      await bonPion.mint(user.address);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, pionAmount);
       await token.connect(admin).mint(user.address, tokenAmount);
 
       // approve tokens
-      await pion.approve(vePion.address, pionAmount);
-      await token.approve(vePion.address, tokenAmount);
+      await pion.approve(bonPion.address, pionAmount);
+      await token.approve(bonPion.address, tokenAmount);
 
-      // pause VePION
-      await vePion.connect(admin).pause();
+      // pause bonPION
+      await bonPion.connect(admin).pause();
 
       // lock tokens
       await expect(
-        vePion.lock(
+        bonPion.lock(
           tokenId,
           [pion.address, token.address],
           [pionAmount, tokenAmount]
@@ -600,27 +604,27 @@ describe("vePION", function () {
     });
 
     it("Should not lock PION while PION is paused but lock other tokens", async function () {
-      const tokenId = await vePion.callStatic.mint(user.address);
-      await vePion.mint(admin.address);
+      const tokenId = await bonPion.callStatic.mint(user.address);
+      await bonPion.mint(admin.address);
       const pionAmount = ethers.utils.parseEther("100");
       const tokenAmount = ethers.utils.parseEther("200");
 
       // whitelist token
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, pionAmount);
       await token.connect(admin).mint(user.address, tokenAmount);
 
       // approve tokens
-      await pion.approve(vePion.address, pionAmount);
-      await token.approve(vePion.address, tokenAmount);
+      await pion.approve(bonPion.address, pionAmount);
+      await token.approve(bonPion.address, tokenAmount);
 
       await pion.connect(admin).pause();
 
       // mint NFT and lock tokens
       await expect(
-        vePion.lock(
+        bonPion.lock(
           tokenId,
           [pion.address, token.address],
           [pionAmount, tokenAmount]
@@ -628,7 +632,7 @@ describe("vePION", function () {
       ).to.be.revertedWith("Pausable: paused");
 
       await expect(
-        vePion.lock(tokenId, [pion.address], [pionAmount])
+        bonPion.lock(tokenId, [pion.address], [pionAmount])
       ).to.be.revertedWith("Pausable: paused");
 
       // pion should not be burned
@@ -638,18 +642,18 @@ describe("vePION", function () {
       expect(await token.balanceOf(treasury)).eq(0);
 
       // NFT locked amounts should be increased
-      expect(await vePion.lockedOf(tokenId, pion.address)).eq(0);
-      expect(await vePion.lockedOf(tokenId, token.address)).eq(0);
+      expect(await bonPion.lockedOf(tokenId, pion.address)).eq(0);
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(0);
 
       // total locked should be increased
-      expect(await vePion.totalLocked(pion.address)).eq(0);
-      expect(await vePion.totalLocked(token.address)).eq(0);
+      expect(await bonPion.totalLocked(pion.address)).eq(0);
+      expect(await bonPion.totalLocked(token.address)).eq(0);
 
-      await vePion.lock(tokenId, [token.address], [tokenAmount]);
+      await bonPion.lock(tokenId, [token.address], [tokenAmount]);
 
       expect(await token.balanceOf(treasury)).eq(tokenAmount);
-      expect(await vePion.lockedOf(tokenId, token.address)).eq(tokenAmount);
-      expect(await vePion.totalLocked(token.address)).eq(tokenAmount);
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(tokenAmount);
+      expect(await bonPion.totalLocked(token.address)).eq(tokenAmount);
     });
 
     it("Should not mint and lock while paused", async function () {
@@ -657,21 +661,21 @@ describe("vePION", function () {
       const tokenAmount = ethers.utils.parseEther("200");
 
       // whitelist token
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, pionAmount);
       await token.connect(admin).mint(user.address, tokenAmount);
 
       // approve tokens
-      await pion.approve(vePion.address, pionAmount);
-      await token.approve(vePion.address, tokenAmount);
+      await pion.approve(bonPion.address, pionAmount);
+      await token.approve(bonPion.address, tokenAmount);
 
-      await vePion.connect(admin).pause();
+      await bonPion.connect(admin).pause();
 
       // mint NFT and lock tokens
       await expect(
-        vePion.mintAndLock(
+        bonPion.mintAndLock(
           [pion.address, token.address],
           [pionAmount, tokenAmount],
           user.address
@@ -686,71 +690,71 @@ describe("vePION", function () {
       const pionAmount = ethers.utils.parseEther("100");
       const tokenAmount = ethers.utils.parseEther("200");
 
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, MAX_UINT);
       await token.connect(admin).mint(user.address, MAX_UINT);
 
-      // approve tokens to vePion
-      await pion.approve(vePion.address, MAX_UINT);
-      await token.approve(vePion.address, MAX_UINT);
+      // approve tokens to bonPion
+      await pion.approve(bonPion.address, MAX_UINT);
+      await token.approve(bonPion.address, MAX_UINT);
 
       // mint and lock NFTs
-      await vePion.mintAndLock(
+      await bonPion.mintAndLock(
         [pion.address, token.address],
         [pionAmount, tokenAmount],
         user.address
       );
-      await vePion.mintAndLock([token.address], [tokenAmount], user.address);
+      await bonPion.mintAndLock([token.address], [tokenAmount], user.address);
 
       // // pause
-      await vePion.connect(admin).pause();
+      await bonPion.connect(admin).pause();
 
       // // merge NFTs
-      await expect(vePion.merge(tokenIdA, tokenIdB)).to.be.revertedWith(
+      await expect(bonPion.merge(tokenIdA, tokenIdB)).to.be.revertedWith(
         "Pausable: paused"
       );
 
       // tokenIdA should not be burnt
-      expect(await vePion.ownerOf(tokenIdA)).eq(user.address);
+      expect(await bonPion.ownerOf(tokenIdA)).eq(user.address);
     });
 
     it("Should split NFT", async function () {
       const pionAmount = ethers.utils.parseEther("100");
       const tokenAmount = ethers.utils.parseEther("200");
 
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, MAX_UINT);
       await token.connect(admin).mint(user.address, MAX_UINT);
 
-      // approve tokens to vePion
-      await pion.approve(vePion.address, MAX_UINT);
-      await token.approve(vePion.address, MAX_UINT);
+      // approve tokens to bonPion
+      await pion.approve(bonPion.address, MAX_UINT);
+      await token.approve(bonPion.address, MAX_UINT);
 
       const pionSplitAmounts = [pionAmount, pionAmount.div(2), 0];
       const tokenSplitAmounts = [0, tokenAmount.div(2), tokenAmount];
 
       // mint NFT
-      const tokenId = await vePion.callStatic.mintAndLock(
+      const tokenId = await bonPion.callStatic.mintAndLock(
         [pion.address, token.address],
         [pionAmount, tokenAmount],
         user.address
       );
-      await vePion.mintAndLock(
+      await bonPion.mintAndLock(
         [pion.address, token.address],
         [pionAmount, tokenAmount],
         user.address
       );
 
       // pause
-      await vePion.connect(admin).pause();
+      await bonPion.connect(admin).pause();
 
       // split NFT
       await expect(
-        vePion.split(
+        bonPion.split(
           tokenId,
           [pion.address, token.address],
           [pionAmount.div(2), tokenAmount.div(2)]
@@ -763,71 +767,70 @@ describe("vePION", function () {
     it("Should not set 0 address as treasury", async function () {
       const zeroAddress = ethers.constants.AddressZero;
       await expect(
-        vePion.connect(admin).setTreasury(zeroAddress)
+        bonPion.connect(admin).setTreasury(zeroAddress)
       ).to.be.revertedWith("Zero Address");
     });
 
     it("Should not set treasury by user", async function () {
-      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${MANAGER_ROLE}`;
       await expect(
-        vePion.connect(user).setTreasury(user.address)
-      ).to.be.revertedWith(revertMSG);
+        bonPion.connect(user).setTreasury(user.address)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
     it("Should set treasury by admin", async function () {
-      await vePion.connect(admin).setTreasury(user.address);
-      expect(await vePion.treasury()).eq(user.address);
+      await bonPion.connect(admin).setTreasury(user.address);
+      expect(await bonPion.treasury()).eq(user.address);
     });
   });
 
   describe("Get Locked Of", async function () {
     it("Should return a list of tokens' locked amount", async function () {
-      const tokenId = await vePion.callStatic.mint(user.address);
-      await vePion.mint(user.address);
-      const tokenId2 = await vePion.callStatic.mint(user.address);
-      await vePion.mint(user.address);
+      const tokenId = await bonPion.callStatic.mint(user.address);
+      await bonPion.mint(user.address);
+      const tokenId2 = await bonPion.callStatic.mint(user.address);
+      await bonPion.mint(user.address);
       const pionAmount = ethers.utils.parseEther("100");
       const tokenAmount = ethers.utils.parseEther("200");
 
       // whitelist token
-      await vePion.connect(admin).whitelistTokens([token.address]);
+      await bonPion.connect(admin).whitelistTokens([token.address]);
 
       // mint an NFT for user
-      await vePion.mint(user.address);
+      await bonPion.mint(user.address);
 
       // mint required tokens for user
       await pion.connect(admin).mint(user.address, pionAmount.mul(3));
       await token.connect(admin).mint(user.address, tokenAmount);
 
       // approve tokens
-      await pion.approve(vePion.address, pionAmount.mul(3));
-      await token.approve(vePion.address, tokenAmount);
+      await pion.approve(bonPion.address, pionAmount.mul(3));
+      await token.approve(bonPion.address, tokenAmount);
 
       // lock tokens
-      await vePion.lock(
+      await bonPion.lock(
         tokenId,
         [pion.address, token.address],
         [pionAmount, tokenAmount]
       );
 
-      await vePion.lock(tokenId2, [pion.address], [pionAmount.mul(2)]);
-      expect(await vePion.getLockedOf(tokenId, [pion.address])).to.deep.equal([
+      await bonPion.lock(tokenId2, [pion.address], [pionAmount.mul(2)]);
+      expect(await bonPion.getLockedOf(tokenId, [pion.address])).to.deep.equal([
         pionAmount,
       ]);
-      expect(await vePion.getLockedOf(tokenId, [token.address])).to.deep.equal([
-        tokenAmount,
-      ]);
-      expect(
-        await vePion.getLockedOf(tokenId, [pion.address, token.address])
-      ).to.deep.equal([pionAmount, tokenAmount]);
-
-      expect(await vePion.getLockedOf(tokenId2, [pion.address])).to.deep.equal([
-        pionAmount.mul(2),
-      ]);
-      expect(await vePion.getLockedOf(tokenId2, [token.address])).to.deep.equal(
-        [0]
+      expect(await bonPion.getLockedOf(tokenId, [token.address])).to.deep.equal(
+        [tokenAmount]
       );
       expect(
-        await vePion.getLockedOf(tokenId2, [pion.address, token.address])
+        await bonPion.getLockedOf(tokenId, [pion.address, token.address])
+      ).to.deep.equal([pionAmount, tokenAmount]);
+
+      expect(await bonPion.getLockedOf(tokenId2, [pion.address])).to.deep.equal(
+        [pionAmount.mul(2)]
+      );
+      expect(
+        await bonPion.getLockedOf(tokenId2, [token.address])
+      ).to.deep.equal([0]);
+      expect(
+        await bonPion.getLockedOf(tokenId2, [pion.address, token.address])
       ).to.deep.equal([pionAmount.mul(2), 0]);
     });
   });
