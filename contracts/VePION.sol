@@ -11,8 +11,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 
 import "./interfaces/IPION.sol";
 
-// todo: add events
-
 contract VePION is
     Initializable,
     ERC721Upgradeable,
@@ -66,10 +64,6 @@ contract VePION is
         // whitelist pion
         tokensWhitelist.push(PION);
         isTokenWhitelisted[PION] = true;
-
-        // whitelist contract address for transferring
-        transferWhitelist.push(address(this));
-        isTransferWhitelisted[address(this)] = true;
     }
 
     function pause() public onlyOwner {
@@ -89,6 +83,8 @@ contract VePION is
             tokensWhitelist.push(tokens[i]);
             isTokenWhitelisted[tokens[i]] = true;
         }
+
+        emit whitelistTokensUpdated(tokens);
     }
 
     /// @notice whitelists for transfer
@@ -105,6 +101,7 @@ contract VePION is
             transferWhitelist.push(addresses[i]);
             isTransferWhitelisted[addresses[i]] = true;
         }
+        emit WhitelistTransferUpdated(addresses);
     }
 
     /// @notice sets treasury address
@@ -112,6 +109,7 @@ contract VePION is
     function setTreasury(address _treasury) external onlyOwner {
         require(_treasury != address(0), "Zero Address");
         treasury = _treasury;
+        emit TreasuryUpdated(_treasury);
     }
 
     // ------------------------------------------------------------------------
@@ -191,6 +189,7 @@ contract VePION is
             lockedOf[tokenId][tokens[i]] += receivedAmount;
             totalLocked[tokens[i]] += receivedAmount;
         }
+        emit Locked(msg.sender, tokenId, tokens, amounts);
     }
 
     /// @notice mints a new NFT for requested address and locks tokens for that NFT
@@ -230,6 +229,7 @@ contract VePION is
         }
 
         _burn(tokenIdA);
+        emit Merged(msg.sender, tokenIdA, tokenIdB);
     }
 
     /// @notice splits NFT into two NFTs
@@ -260,6 +260,7 @@ contract VePION is
             lockedOf[tokenId][tokens[i]] -= amounts[i];
             lockedOf[newTokenId][tokens[i]] += amounts[i];
         }
+        emit Splited(msg.sender, tokenId, tokens, amounts);
     }
 
     // ------------------------------------------------------------------------
@@ -276,4 +277,14 @@ contract VePION is
             amounts[i] = lockedOf[tokenId][tokens[i]];
         }
     }
+
+    // ------------------------------------------------------------------------
+    // Events
+    // ------------------------------------------------------------------------
+    event Locked(address indexed from, uint256 indexed tokenId, address[] tokens, uint256[] amounts);
+    event Merged(address indexed from, uint256 indexed tokenIdA, uint256 indexed tokenIdB);
+    event Splited(address indexed from, uint256 indexed tokenId, address[] tokens, uint256[] amounts);
+    event whitelistTokensUpdated(address[] tokens);
+    event WhitelistTransferUpdated(address[] addresses);
+    event TreasuryUpdated(address treasury);
 }
