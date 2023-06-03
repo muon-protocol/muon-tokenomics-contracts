@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
@@ -15,7 +15,7 @@ contract VePION is
     Initializable,
     ERC721Upgradeable,
     PausableUpgradeable,
-    OwnableUpgradeable,
+    AccessControlUpgradeable,
     ERC721BurnableUpgradeable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -28,9 +28,6 @@ contract VePION is
 
     address[] public tokensWhitelist;
     mapping(address => bool) public isTokenWhitelisted;
-
-    address[] public transferWhitelist;
-    mapping(address => bool) public isTransferWhitelisted;
 
     // NFT id => token address => locked amount
     mapping(uint256 => mapping(address => uint256)) public lockedOf;
@@ -46,6 +43,12 @@ contract VePION is
         _disableInitializers();
     }
 
+    bool isPublicTransferEnabled;
+
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    bytes32 public constant TRANSFERABLE_ADDRESS_ROLE =
+        keccak256("TRANSFERABLE_ADDRESS_ROLE");
+
     // ------------------------------------------------------------------------
     // Restricted Functions
     // ------------------------------------------------------------------------
@@ -53,8 +56,8 @@ contract VePION is
     function initialize(address _PION, address _treasury) public initializer {
         __ERC721_init("vePION", "vePION");
         __Pausable_init();
-        __Ownable_init();
         __ERC721Burnable_init();
+        __AccessControl_init();
 
         require(_PION != address(0) && _treasury != address(0), "Zero Address");
 
@@ -64,49 +67,50 @@ contract VePION is
         // whitelist pion
         tokensWhitelist.push(PION);
         isTokenWhitelisted[PION] = true;
+
+        isPublicTransferEnabled = false;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MANAGER_ROLE, msg.sender);
     }
 
-    function pause() public onlyOwner {
+    function pause() public onlyRole(MANAGER_ROLE) {
         _pause();
     }
 
-    function unpause() public onlyOwner {
+    function unpause() public onlyRole(MANAGER_ROLE) {
         _unpause();
     }
 
     /// @notice whitelists tokens
     /// @dev only whitelisted tokens can be locked
     /// @param tokens list of tokens to be whitelisted
-    function whitelistTokens(address[] memory tokens) external onlyOwner {
+    function whitelistTokens(
+        address[] memory tokens
+    ) external onlyRole(MANAGER_ROLE) {
         for (uint256 i; i < tokens.length; ++i) {
-            require(isTokenWhitelisted[tokens[i]] == false, "Already Whitelisted");
+            require(
+                isTokenWhitelisted[tokens[i]] == false,
+                "Already Whitelisted"
+            );
             tokensWhitelist.push(tokens[i]);
             isTokenWhitelisted[tokens[i]] = true;
         }
-
         emit whitelistTokensUpdated(tokens);
     }
 
-    /// @notice whitelists for transfer
-    /// @dev only whitelisted addresses can send/receive NFT
-    /// @param addresses list of addresses to be whitelisted
-    function whitelistTransferFor(
-        address[] memory addresses
-    ) external onlyOwner {
-        for (uint256 i; i < addresses.length; ++i) {
-            require(
-                isTransferWhitelisted[addresses[i]] == false,
-                "Already Whitelisted"
-            );
-            transferWhitelist.push(addresses[i]);
-            isTransferWhitelisted[addresses[i]] = true;
-        }
-        emit WhitelistTransferUpdated(addresses);
+    /// @notice enable/disable public transfer
+    /// @param _isPublicTransferEnabled the status of public transfer
+    function setPublicTransfer(
+        bool _isPublicTransferEnabled
+    ) external onlyRole(MANAGER_ROLE) {
+        isPublicTransferEnabled = _isPublicTransferEnabled;
+        emit PublicTransferStatusUpdated(_isPublicTransferEnabled);
     }
 
     /// @notice sets treasury address
     /// @param _treasury new treasury address
-    function setTreasury(address _treasury) external onlyOwner {
+    function setTreasury(address _treasury) external onlyRole(MANAGER_ROLE) {
         require(_treasury != address(0), "Zero Address");
         treasury = _treasury;
         emit TreasuryUpdated(_treasury);
@@ -126,8 +130,10 @@ contract VePION is
         // check it's not a mint or burn transaction
         if (from != address(0) && to != address(0)) {
             require(
-                isTransferWhitelisted[from] || isTransferWhitelisted[to],
-                "Transfer Limited"
+                isPublicTransferEnabled ||
+                    hasRole(TRANSFERABLE_ADDRESS_ROLE, from) ||
+                    hasRole(TRANSFERABLE_ADDRESS_ROLE, to),
+                "Transfer is Limited"
             );
         }
 
@@ -278,13 +284,39 @@ contract VePION is
         }
     }
 
+    function supportsInterface(
+        bytes4 interfaceId
+    )
+        public
+        view
+        virtual
+        override(ERC721Upgradeable, AccessControlUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
     // ------------------------------------------------------------------------
     // Events
     // ------------------------------------------------------------------------
-    event Locked(address indexed from, uint256 indexed tokenId, address[] tokens, uint256[] amounts);
-    event Merged(address indexed from, uint256 indexed tokenIdA, uint256 indexed tokenIdB);
-    event Splited(address indexed from, uint256 indexed tokenId, address[] tokens, uint256[] amounts);
+    event Locked(
+        address indexed from,
+        uint256 indexed tokenId,
+        address[] tokens,
+        uint256[] amounts
+    );
+    event Merged(
+        address indexed from,
+        uint256 indexed tokenIdA,
+        uint256 indexed tokenIdB
+    );
+    event Splited(
+        address indexed from,
+        uint256 indexed tokenId,
+        address[] tokens,
+        uint256[] amounts
+    );
     event whitelistTokensUpdated(address[] tokens);
-    event WhitelistTransferUpdated(address[] addresses);
+    event PublicTransferStatusUpdated(bool publicTransferStatus);
     event TreasuryUpdated(address treasury);
 }
