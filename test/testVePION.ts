@@ -249,6 +249,88 @@ describe("bonPION", function () {
     });
   });
 
+  describe("Burn", async function () {
+    const tokenId = 1;
+    const tokenId2 = 2;
+
+    const pionAmount = ethers.utils.parseEther("100");
+    const tokenAmount = ethers.utils.parseEther("200");
+
+    beforeEach(async () => {
+      // whitelist token
+      await bonPion.connect(admin).whitelistTokens([token.address]);
+
+      // mint required tokens for user
+      await pion.connect(admin).mint(user.address, pionAmount.mul(3));
+      await token.connect(admin).mint(user.address, tokenAmount);
+
+      // mint NFTs
+      await bonPion.mint(user.address);
+      await bonPion.mint(user.address);
+
+      // approve tokens to bonPion
+      await pion.approve(bonPion.address, pionAmount.mul(3));
+      await token.approve(bonPion.address, tokenAmount);
+
+      // lock tokens
+      await bonPion.lock(
+        tokenId,
+        [pion.address, token.address],
+        [pionAmount, tokenAmount]
+      );
+      await bonPion.lock(tokenId2, [pion.address], [pionAmount.mul(2)]);
+
+      // NFTs locked amounts should be increased
+      expect(await bonPion.lockedOf(tokenId, pion.address)).eq(pionAmount);
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(tokenAmount);
+      expect(await bonPion.lockedOf(tokenId2, pion.address)).eq(
+        pionAmount.mul(2)
+      );
+      expect(await bonPion.lockedOf(tokenId2, token.address)).eq(0);
+
+      // total locked should be increased
+      expect(await bonPion.totalLocked(pion.address)).eq(pionAmount.mul(3));
+      expect(await bonPion.totalLocked(token.address)).eq(tokenAmount);
+    });
+
+    it("Should burn the NFT", async function () {
+      await bonPion.connect(user).burn(tokenId);
+
+      expect(await bonPion.lockedOf(tokenId, pion.address)).eq(0);
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(0);
+      expect(await bonPion.totalLocked(pion.address)).eq(pionAmount.mul(2));
+      expect(await bonPion.totalLocked(token.address)).eq(0);
+
+      await bonPion.connect(user).burn(tokenId2);
+
+      expect(await bonPion.lockedOf(tokenId, pion.address)).eq(0);
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(0);
+      expect(await bonPion.totalLocked(pion.address)).eq(0);
+      expect(await bonPion.totalLocked(token.address)).eq(0);
+    });
+
+    it("Should burn the NFT with approval", async function () {
+      await bonPion.connect(user).approve(admin.address, tokenId);
+      await bonPion.connect(admin).burn(tokenId);
+
+      expect(await bonPion.lockedOf(tokenId, pion.address)).eq(0);
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(0);
+      expect(await bonPion.totalLocked(pion.address)).eq(pionAmount.mul(2));
+      expect(await bonPion.totalLocked(token.address)).eq(0);
+    });
+
+    it("Should not burn the NFT without approval", async function () {
+      await expect(bonPion.connect(admin).burn(tokenId)).to.be.revertedWith(
+        "ERC721: caller is not token owner or approved"
+      );
+
+      expect(await bonPion.lockedOf(tokenId, pion.address)).eq(pionAmount);
+      expect(await bonPion.lockedOf(tokenId, token.address)).eq(tokenAmount);
+      expect(await bonPion.totalLocked(pion.address)).eq(pionAmount.mul(3));
+      expect(await bonPion.totalLocked(token.address)).eq(tokenAmount);
+    });
+  });
+
   describe("Split and Merge", async function () {
     const tokenIdA = 1;
     const tokenIdB = 2;
@@ -439,7 +521,7 @@ describe("bonPION", function () {
       expect(await bonPion.ownerOf(tokenId)).eq(user.address);
     });
 
-    it("Shouldn't non-whitelisted transfers send/receive NFTs", async function () {
+    it("Should not non-whitelisted transfers send/receive NFTs while public transfer is disabled", async function () {
       const tokenId = 1;
       await bonPion.mint(user.address);
       await expect(
