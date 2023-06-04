@@ -10,9 +10,9 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-import "./interfaces/IPION.sol";
+import "./interfaces/IToken.sol";
 
-contract BonPION is
+contract BonToken is
     Initializable,
     ERC721Upgradeable,
     PausableUpgradeable,
@@ -24,7 +24,7 @@ contract BonPION is
 
     uint256 public _tokenIdCounter;
 
-    address public PION;
+    address public Token;
 
     address public treasury;
 
@@ -54,21 +54,29 @@ contract BonPION is
     // Restricted Functions
     // ------------------------------------------------------------------------
 
-    function initialize(address _PION, address _treasury) public initializer {
-        __ERC721_init("bonPION", "bonPION");
+    function _initialize(
+        address _Token,
+        address _treasury,
+        string memory _name,
+        string memory _symbol
+    ) internal initializer {
+        __ERC721_init(_name, _symbol);
         __Pausable_init();
         __ERC721Burnable_init();
         __AccessControl_init();
         __Ownable_init();
 
-        require(_PION != address(0) && _treasury != address(0), "Zero Address");
+        require(
+            _Token != address(0) && _treasury != address(0),
+            "Zero Address"
+        );
 
-        PION = _PION;
+        Token = _Token;
         treasury = _treasury;
 
-        // whitelist pion
-        tokensWhitelist.push(PION);
-        isTokenWhitelisted[PION] = true;
+        // whitelist Token
+        tokensWhitelist.push(Token);
+        isTokenWhitelisted[Token] = true;
 
         isPublicTransferEnabled = false;
 
@@ -172,8 +180,8 @@ contract BonPION is
             require(isTokenWhitelisted[tokens[i]], "Not Whitelisted");
             require(amounts[i] > 0, "Cannot Lock Zero Amount");
 
-            if (tokens[i] == PION) {
-                IPION(PION).burnFrom(msg.sender, amounts[i]);
+            if (tokens[i] == Token) {
+                IToken(Token).burnFrom(msg.sender, amounts[i]);
                 receivedAmount = amounts[i];
             } else {
                 receivedAmount = IERC20Upgradeable(tokens[i]).balanceOf(
@@ -216,6 +224,7 @@ contract BonPION is
     function merge(uint256 tokenIdA, uint256 tokenIdB) external whenNotPaused {
         require(ownerOf(tokenIdA) == msg.sender, "Not Owned");
         require(tokenIdA != tokenIdB, "Same Token ID");
+        require(_ownerOf(tokenIdB) != address(0), "ERC721: invalid token ID");
 
         for (uint256 i; i < tokensWhitelist.length; ++i) {
             if (lockedOf[tokenIdA][tokensWhitelist[i]] != 0) {
@@ -263,7 +272,7 @@ contract BonPION is
             lockedOf[tokenId][tokens[i]] -= amounts[i];
             lockedOf[newTokenId][tokens[i]] += amounts[i];
         }
-        emit Splited(msg.sender, tokenId, tokens, amounts);
+        emit Splited(msg.sender, tokenId, newTokenId, tokens, amounts);
     }
 
     // ------------------------------------------------------------------------
@@ -310,6 +319,7 @@ contract BonPION is
     event Splited(
         address indexed from,
         uint256 indexed tokenId,
+        uint256 indexed newTokenId,
         address[] tokens,
         uint256[] amounts
     );

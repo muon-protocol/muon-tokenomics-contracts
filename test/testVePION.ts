@@ -293,6 +293,23 @@ describe("bonPION", function () {
       );
     });
 
+    it("Should not merge with burned NFTs", async function () {
+      // mint and lock NFTs
+      await bonPion.mintAndLock(
+        [pion.address, token.address],
+        [pionAmount, tokenAmount],
+        user.address
+      );
+      await bonPion.mintAndLock([token.address], [tokenAmount], user.address);
+
+      await bonPion.connect(user).burn(tokenIdB);
+
+      // merge NFTs
+      await expect(bonPion.merge(tokenIdA, tokenIdB)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+    });
+
     it("Should not merge not owned NFTs", async function () {
       // mint tokenIdA for admin
       await bonPion.mintAndLock(

@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
+import "./IToken.sol";
 
-interface IPION is IERC20Upgradeable {
-    function burnFrom(address account, uint256 amount) external;
-
-    function mint(address to, uint256 amount) external;
-}
+interface IPION is IToken {}
