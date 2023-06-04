@@ -45,7 +45,7 @@ contract BonToken is
         _disableInitializers();
     }
 
-    bool isPublicTransferEnabled;
+    bool public isPublicTransferEnabled;
 
     bytes32 public constant TRANSFERABLE_ADDRESS_ROLE =
         keccak256("TRANSFERABLE_ADDRESS_ROLE");
@@ -135,12 +135,13 @@ contract BonToken is
         uint256 tokenId,
         uint256 batchSize
     ) internal override whenNotPaused {
-        require(
-            isPublicTransferEnabled ||
+        if(!isPublicTransferEnabled){
+            require(
                 hasRole(TRANSFERABLE_ADDRESS_ROLE, from) ||
                 hasRole(TRANSFERABLE_ADDRESS_ROLE, to),
-            "Transfer is Limited"
-        );
+                "Transfer is Limited"
+            );
+        }
         super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
 
