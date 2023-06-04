@@ -81,6 +81,7 @@ contract BonToken is
         isPublicTransferEnabled = false;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(TRANSFERABLE_ADDRESS_ROLE, address(0));
     }
 
     function pause() public onlyOwner {
@@ -136,8 +137,6 @@ contract BonToken is
     ) internal override whenNotPaused {
         if(!isPublicTransferEnabled){
             require(
-                from == address(0) || // mint
-                to == address(0) || // burn
                 hasRole(TRANSFERABLE_ADDRESS_ROLE, from) ||
                 hasRole(TRANSFERABLE_ADDRESS_ROLE, to),
                 "Transfer is Limited"
@@ -159,6 +158,19 @@ contract BonToken is
         _safeMint(to, tokenId);
         mintedAt[tokenId] = block.timestamp;
         return tokenId;
+    }
+
+    /// @notice burns the NFT
+    /// @param tokenId tokenId
+    function burn(uint256 tokenId) public virtual override whenNotPaused {
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
+        for (uint256 i; i < tokensWhitelist.length; ++i) {
+            if (lockedOf[tokenId][tokensWhitelist[i]] != 0) {
+                totalLocked[tokensWhitelist[i]] -= lockedOf[tokenId][tokensWhitelist[i]];
+                lockedOf[tokenId][tokensWhitelist[i]] = 0;
+            }
+        }
+        _burn(tokenId);
     }
 
     /// @notice locks tokens for give tokenId
@@ -197,6 +209,11 @@ contract BonToken is
                     IERC20Upgradeable(tokens[i]).balanceOf(treasury) -
                     receivedAmount;
             }
+
+            require(
+                amounts[i] == receivedAmount,
+                "Inconsistent amount of token"
+            );
 
             lockedOf[tokenId][tokens[i]] += receivedAmount;
             totalLocked[tokens[i]] += receivedAmount;
