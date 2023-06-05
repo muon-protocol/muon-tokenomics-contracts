@@ -1,22 +1,22 @@
 import { ethers, upgrades } from "hardhat";
 import { BigNumber } from "ethers";
-import { PION, BonPION } from "../typechain-types";
+import { PION, BondedPION } from "../typechain-types";
 
 export const MAX_UINT = BigNumber.from(
   "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 );
 
 export async function deploy(treasury: string) {
-  const [PION, bonPION] = await Promise.all([
+  const [PION, bondedPION] = await Promise.all([
     ethers.getContractFactory("PION"),
-    ethers.getContractFactory("BonPION"),
+    ethers.getContractFactory("BondedPION"),
   ]);
 
   const pion = (await upgrades.deployProxy(PION, [])) as PION;
-  const bonPion = (await upgrades.deployProxy(bonPION, [
+  const bonPion = (await upgrades.deployProxy(bondedPION, [
     pion.address,
     treasury,
-  ])) as BonPION;
+  ])) as BondedPION;
 
   return {
     pion,
