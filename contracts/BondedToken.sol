@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 
 import "./interfaces/IToken.sol";
 
-contract BonToken is
+contract BondedToken is
     Initializable,
     ERC721Upgradeable,
     PausableUpgradeable,
