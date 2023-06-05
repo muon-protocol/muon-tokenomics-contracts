@@ -351,14 +351,52 @@ describe("bonPION", function () {
       await token.approve(bonPion.address, MAX_UINT);
     });
 
-    it("Should merge NFTs", async function () {
+    it("Should merge the new NFT with the old one", async function () {
       // mint and lock NFTs
       await bonPion.mintAndLock(
         [pion.address, token.address],
         [pionAmount, tokenAmount],
         user.address
       );
+
       await bonPion.mintAndLock([token.address], [tokenAmount], user.address);
+
+      // mint times
+      const tokenAMintTime = await bonPion.mintedAt(tokenIdA);
+      const tokenBMintTime = await bonPion.mintedAt(tokenIdB);
+
+      // merge NFTs
+      await bonPion.merge(tokenIdB, tokenIdA);
+
+      // tokenIdA should be burnt
+      await expect(bonPion.ownerOf(tokenIdB)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+
+      // tokenIdB locked amounts should be increased
+      expect(await bonPion.lockedOf(tokenIdA, pion.address)).eq(pionAmount);
+      expect(await bonPion.lockedOf(tokenIdA, token.address)).eq(
+        tokenAmount.mul(2)
+      );
+
+      expect(await bonPion.mintedAt(tokenIdA)).eq(
+        Math.min(tokenAMintTime, tokenBMintTime)
+      );
+    });
+
+    it("Should merge the old NFT with the new one", async function () {
+      // mint and lock NFTs
+      await bonPion.mintAndLock(
+        [pion.address, token.address],
+        [pionAmount, tokenAmount],
+        user.address
+      );
+
+      await bonPion.mintAndLock([token.address], [tokenAmount], user.address);
+
+      // mint times
+      const tokenAMintTime = await bonPion.mintedAt(tokenIdA);
+      const tokenBMintTime = await bonPion.mintedAt(tokenIdB);
 
       // merge NFTs
       await bonPion.merge(tokenIdA, tokenIdB);
@@ -372,6 +410,24 @@ describe("bonPION", function () {
       expect(await bonPion.lockedOf(tokenIdB, pion.address)).eq(pionAmount);
       expect(await bonPion.lockedOf(tokenIdB, token.address)).eq(
         tokenAmount.mul(2)
+      );
+
+      expect(await bonPion.mintedAt(tokenIdB)).eq(
+        Math.min(tokenAMintTime, tokenBMintTime)
+      );
+    });
+
+    it("Should merge same NFT", async function () {
+      // mint and lock NFTs
+      await bonPion.mintAndLock(
+        [pion.address, token.address],
+        [pionAmount, tokenAmount],
+        user.address
+      );
+
+      // merge NFTs
+      await expect(bonPion.merge(tokenIdA, tokenIdA)).to.be.revertedWith(
+        "Same Token ID"
       );
     });
 
@@ -452,6 +508,51 @@ describe("bonPION", function () {
           tokenSplitAmounts[i]
         );
       }
+    });
+
+    it("Should not split NFT if the lenght of amount list and tokens' address list mismatched", async function () {
+      const tokenId = 1;
+
+      // mint NFT
+      await bonPion.mintAndLock(
+        [pion.address, token.address],
+        [pionAmount, tokenAmount],
+        user.address
+      );
+
+      // split NFT
+      await expect(
+        bonPion.split(
+          tokenId,
+          [pion.address, token.address],
+          [pionAmount, tokenAmount, tokenAmount]
+        )
+      ).to.be.revertedWith("Length Mismatch");
+      await expect(
+        bonPion.split(tokenId, [pion.address, token.address], [pionAmount])
+      ).to.be.revertedWith("Length Mismatch");
+    });
+
+    it("Should not split unowned NFT", async function () {
+      const tokenId = 1;
+
+      // mint NFT
+      await bonPion.mintAndLock(
+        [pion.address, token.address],
+        [pionAmount, tokenAmount],
+        user.address
+      );
+
+      // split NFT
+      await expect(
+        bonPion
+          .connect(admin)
+          .split(
+            tokenId,
+            [pion.address, token.address],
+            [pionAmount, tokenAmount, tokenAmount]
+          )
+      ).to.be.revertedWith("Not Owned");
     });
 
     it("Should not split NFT with amounts more than locked amounts", async function () {
@@ -931,6 +1032,20 @@ describe("bonPION", function () {
       expect(
         await bonPion.getLockedOf(tokenId2, [pion.address, token.address])
       ).to.deep.equal([pionAmount.mul(2), 0]);
+    });
+  });
+
+  describe("Supports Interface", async function () {
+    it("should return true for supported interface", async function () {
+      const interfaceId = "0x01ffc9a7"; // Interface ID for ERC165
+      const result = await bonPion.supportsInterface(interfaceId);
+      expect(result).to.be.true;
+    });
+
+    it("should return false for unsupported interface", async function () {
+      const interfaceId = "0xffffffff"; // Invalid interface ID
+      const result = await bonPion.supportsInterface(interfaceId);
+      expect(result).to.be.false;
     });
   });
 });
