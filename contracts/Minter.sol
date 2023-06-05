@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "./interfaces/IPION.sol";
+import "./interfaces/IToken.sol";
 
 /*
     To Do:
@@ -16,7 +16,7 @@ import "./interfaces/IPION.sol";
 */
 
 contract Minter is Initializable, OwnableUpgradeable, PausableUpgradeable {
-    IPION public pion;
+    IToken public pion;
     address public staking;
     uint256 public mintPeriod;
     uint256 public mintAmount;
@@ -32,7 +32,7 @@ contract Minter is Initializable, OwnableUpgradeable, PausableUpgradeable {
         __Pausable_init();
         __Ownable_init();
 
-        pion = IPION(_pion);
+        pion = IToken(_pion);
         staking = _staking;
         mintPeriod = _mintPeriod;
         mintAmount = _mintAmount;

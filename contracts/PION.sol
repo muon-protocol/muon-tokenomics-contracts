@@ -5,6 +5,6 @@ import "./Token.sol";
 
 contract PION is Token {
     function initialize() public initializer {
-        Token._initialize("PION", "PION");
+        Token._initialize("PioneerNetwork", "PION");
     }
 }
