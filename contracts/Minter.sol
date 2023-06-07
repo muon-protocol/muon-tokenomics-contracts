@@ -11,8 +11,6 @@ import "./interfaces/IToken.sol";
 /*
     To Do:
     - review the contract
-    - write tests
-    - add required events
 */
 
 contract Minter is Initializable, OwnableUpgradeable, PausableUpgradeable {
@@ -32,6 +30,8 @@ contract Minter is Initializable, OwnableUpgradeable, PausableUpgradeable {
         __Pausable_init();
         __Ownable_init();
 
+        require(_pion != address(0) && _staking != address(0), "Zero Address");
+
         pion = IToken(_pion);
         staking = _staking;
         mintPeriod = _mintPeriod;
@@ -41,14 +41,28 @@ contract Minter is Initializable, OwnableUpgradeable, PausableUpgradeable {
     function setStaking(address _staking) external onlyOwner {
         require(_staking != address(0), "Zero Address");
         staking = _staking;
+
+        emit StakingUpdated(_staking);
     }
 
     function setMintPeriod(uint256 _mintPeriod) external onlyOwner {
         mintPeriod = _mintPeriod;
+
+        emit MintPeriodUpdated(_mintPeriod);
     }
 
     function setMintAmount(uint256 _mintAmount) external onlyOwner {
         mintAmount = _mintAmount;
+
+        emit MintAmountUpdated(_mintAmount);
+    }
+
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
     }
 
     function mint() external whenNotPaused {
@@ -58,4 +72,11 @@ contract Minter is Initializable, OwnableUpgradeable, PausableUpgradeable {
             pion.mint(staking, mintAmount);
         }
     }
+
+    // ------------------------------------------------------------------------
+    // Events
+    // ------------------------------------------------------------------------
+    event StakingUpdated(address staking);
+    event MintAmountUpdated(uint256 mintAmount);
+    event MintPeriodUpdated(uint256 mintPeriod);
 }
