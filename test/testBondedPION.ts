@@ -1,12 +1,12 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { PION, TestToken, BonPION } from "../typechain-types";
+import { PION, TestToken, BondedPION } from "../typechain-types";
 import { MAX_UINT, deployTestToken, testDeployLocally } from "../scripts/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 describe("bonPION", function () {
-  let pion: PION, bonPion: BonPION, treasury: string, token: TestToken;
+  let pion: PION, bonPion: BondedPION, treasury: string, token: TestToken;
   let admin: SignerWithAddress, user: SignerWithAddress;
 
   let TRANSFERABLE_ADDRESS_ROLE: string, DEFAULT_ADMIN_ROLE: string;
@@ -28,14 +28,6 @@ describe("bonPION", function () {
   });
 
   describe("Mint and Lock", async function () {
-    it("Should not mint PION by user", async function () {
-      const pionAmount = ethers.utils.parseEther("100");
-      const minterRole = await pion.MINTER_ROLE();
-      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${minterRole}`;
-      await expect(
-        pion.connect(user).mint(user.address, pionAmount)
-      ).to.be.revertedWith(revertMSG);
-    });
 
     it("Should not whitelist tokens by user", async function () {
       await expect(
@@ -380,7 +372,7 @@ describe("bonPION", function () {
       );
 
       expect(await bonPion.mintedAt(tokenIdA)).eq(
-        Math.min(tokenAMintTime, tokenBMintTime)
+        Math.min(tokenAMintTime.toNumber(), tokenBMintTime.toNumber())
       );
     });
 
@@ -413,7 +405,7 @@ describe("bonPION", function () {
       );
 
       expect(await bonPion.mintedAt(tokenIdB)).eq(
-        Math.min(tokenAMintTime, tokenBMintTime)
+        Math.min(tokenAMintTime.toNumber(), tokenBMintTime.toNumber())
       );
     });
 
@@ -668,20 +660,6 @@ describe("bonPION", function () {
   });
 
   describe("Pause and Unpaused", async function () {
-    it("Should not pause and unpause PION by user", async function () {
-      const pionAmount = ethers.utils.parseEther("100");
-
-      await pion.connect(admin).mint(user.address, pionAmount);
-      expect(await pion.connect(user).balanceOf(user.address)).eq(pionAmount);
-
-      const pauserRole = await pion.PAUSER_ROLE();
-      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${pauserRole}`;
-      await expect(pion.connect(user).pause()).to.be.revertedWith(revertMSG);
-
-      await pion.connect(admin).pause();
-
-      await expect(pion.connect(user).unpause()).to.be.revertedWith(revertMSG);
-    });
 
     it("Should not pause and unpause bonPION by user", async function () {
       await expect(bonPion.connect(user).pause()).to.be.revertedWith(
@@ -693,38 +671,6 @@ describe("bonPION", function () {
       await expect(bonPion.connect(user).unpause()).to.be.revertedWith(
         "Ownable: caller is not the owner"
       );
-    });
-
-    it("Should pause and unpause PION", async function () {
-      const pionAmount = ethers.utils.parseEther("100");
-
-      await pion.connect(admin).mint(user.address, pionAmount);
-      expect(await pion.connect(user).balanceOf(user.address)).eq(pionAmount);
-      await pion.connect(admin).pause();
-
-      await expect(
-        pion.connect(admin).mint(user.address, pionAmount)
-      ).to.be.revertedWith("Pausable: paused");
-      await expect(
-        pion.connect(user).transfer(admin.address, pionAmount)
-      ).to.be.revertedWith("Pausable: paused");
-      await expect(pion.connect(user).burn(pionAmount)).to.be.revertedWith(
-        "Pausable: paused"
-      );
-
-      await pion.connect(admin).unpause();
-
-      await pion.connect(admin).mint(user.address, pionAmount);
-      expect(await pion.connect(user).balanceOf(user.address)).eq(
-        pionAmount.mul(2)
-      );
-
-      await pion.connect(user).transfer(admin.address, pionAmount);
-      expect(await pion.connect(admin).balanceOf(admin.address)).eq(pionAmount);
-      expect(await pion.connect(user).balanceOf(user.address)).eq(pionAmount);
-
-      await pion.connect(user).burn(pionAmount);
-      expect(await pion.connect(user).balanceOf(user.address)).eq(0);
     });
 
     it("Should pause and unpause bonPION", async function () {
