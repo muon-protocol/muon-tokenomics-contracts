@@ -2,7 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { PION, TestToken, BondedPION } from "../typechain-types";
-import { MAX_UINT, deployTestToken, testDeployLocally } from "../scripts/utils";
+import { MAX_UINT, deployTestToken, PionTestDeployLocally } from "../scripts/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 describe("bonPION", function () {
@@ -16,9 +16,9 @@ describe("bonPION", function () {
   });
 
   beforeEach(async () => {
-    const contracts = await loadFixture(testDeployLocally);
-    pion = contracts.pion.connect(user);
-    bonPion = contracts.bonPion.connect(user);
+    const contracts = await loadFixture(PionTestDeployLocally);
+    pion = contracts.token.connect(user);
+    bonPion = contracts.bonToken.connect(user);
     treasury = contracts.treasury;
 
     token = (await loadFixture(deployTestToken)).connect(user);

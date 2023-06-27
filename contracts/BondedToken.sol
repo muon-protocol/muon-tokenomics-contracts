@@ -263,7 +263,7 @@ contract BondedToken is
     }
 
     /// @notice splits NFT into two NFTs
-    /// @dev msg.sender should be owner of both tokenId
+    /// @dev msg.sender should be owner of tokenId
     /// @param tokenId id of the NFT to split
     /// @param tokens list of tokens to move to new NFT
     /// @param amounts list of amounts to move to new NFT
