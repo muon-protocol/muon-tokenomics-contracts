@@ -6,29 +6,29 @@ export const MAX_UINT = BigNumber.from(
   "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 );
 
-export async function deployBondedPION(treasury: string) {
-  const [PION, BondedPION] = await Promise.all([
-    ethers.getContractFactory("PION"),
-    ethers.getContractFactory("BondedPION"),
+export async function deployBondedToken(treasury: string, token_name: string) {
+  const [Token, BondedToken] = await Promise.all([
+    ethers.getContractFactory(token_name),
+    ethers.getContractFactory(`Bonded${token_name}`),
   ]);
 
-  const pion = (await upgrades.deployProxy(PION, [])) as PION;
-  const bonPion = (await upgrades.deployProxy(BondedPION, [
-    pion.address,
+  const token = (await upgrades.deployProxy(Token, [])) as Token;
+  const bonToken = (await upgrades.deployProxy(BondedToken, [
+    token.address,
     treasury,
-  ])) as BondedPION;
+  ])) as BondedToken;
 
   return {
-    pion,
-    bonPion,
+    token,
+    bonToken,
   };
 }
 
-export async function testDeployLocally() {
+export async function PionTestDeployLocally() {
   const signers = await ethers.getSigners();
   const treasury = signers[signers.length - 1].address;
 
-  const contracts = await deployBondedPION(treasury);
+  const contracts = await deployBondedToken(treasury, "PION");
 
   return {
     ...contracts,
