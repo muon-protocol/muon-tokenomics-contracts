@@ -357,7 +357,7 @@ describe("MuonNodeStaking", function () {
         .approve(nodeStaking.address, newTokenId);
 
       // lock tokens into the NFT
-      await nodeStaking.connect(staker2).mergeBondedTokens(newTokenId, tokenId);
+      await nodeStaking.connect(staker2).mergeBondedTokens(newTokenId);
 
       const lockeds2 = await bondedPion.getLockedOf(tokenId, [
         pion.address,

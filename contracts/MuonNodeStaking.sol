@@ -240,12 +240,18 @@ contract MuonNodeStaking is
      * @dev Merges two bonded tokens in the BondedToken contract.
      * The staker must first approve the contract to transfer the tokenIdA on their behalf.
      * @param tokenIdA The id of the first token to be merged.
-     * @param tokenIdB The id of the second token to be merged.
      */
-    function mergeBondedTokens(uint256 tokenIdA, uint256 tokenIdB) external {
+    function mergeBondedTokens(uint256 tokenIdA) external {
         require(
             bondedToken.ownerOf(tokenIdA) == msg.sender,
             "The sender is not the owner of the NFT."
+        );
+
+        uint256 tokenIdB = users[msg.sender].tokenId;
+        require(tokenIdB != 0, "No staking found for the staker address.");
+        require(
+            bondedToken.ownerOf(tokenIdB) == address(this),
+            "Staking contract is not the owner of the NFT."
         );
 
         bondedToken.transferFrom(msg.sender, address(this), tokenIdA);
