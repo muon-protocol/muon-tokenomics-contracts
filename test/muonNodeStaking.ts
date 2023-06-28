@@ -310,7 +310,6 @@ describe("MuonNodeStaking", function () {
       await nodeStaking
         .connect(staker2)
         .lockToBondedToken(
-          tokenId,
           [pion.address, pionLp.address],
           [pionAmount, pionLpAmount]
         );

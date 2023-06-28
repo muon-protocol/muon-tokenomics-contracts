@@ -186,18 +186,23 @@ contract MuonNodeStaking is
      * @dev Locks the specified tokens in the BondedToken contract for a given tokenId.
      * The staker must first approve the contract to transfer the tokens on their behalf.
      * Only the staker can call this function.
-     * @param tokenId The unique identifier of the token.
      * @param tokens The array of token addresses to be locked.
      * @param amounts The corresponding array of token amounts to be locked.
      */
     function lockToBondedToken(
-        uint256 tokenId,
         address[] memory tokens,
         uint256[] memory amounts
     ) external {
         require(
             tokens.length == amounts.length,
             "Mismatch in the length of arrays."
+        );
+
+        uint256 tokenId = users[msg.sender].tokenId;
+        require(tokenId != 0, "No staking found for the staker address.");
+        require(
+            bondedToken.ownerOf(tokenId) == address(this),
+            "Staking contract is not the owner of the NFT."
         );
 
         for (uint256 i = 0; i < tokens.length; i++) {
