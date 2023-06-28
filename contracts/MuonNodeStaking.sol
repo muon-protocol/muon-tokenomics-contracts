@@ -392,11 +392,6 @@ contract MuonNodeStaking is
 
         require(node.active, "The node is already deactivated.");
 
-        require(
-            users[msg.sender].balance > 0,
-            "No staked balance available for withdrawal."
-        );
-
         totalStaked -= users[msg.sender].balance;
         nodeManager.deactiveNode(node.id);
         emit ExitRequested(msg.sender);
