@@ -338,8 +338,8 @@ contract MuonNodeStaking is
         require(node.id != 0, "Node not found for the staker address.");
 
         require(
-            paidRewardPerToken <= rewardPerToken() ||
-                users[msg.sender].paidRewardPerToken < paidRewardPerToken,
+            users[msg.sender].paidRewardPerToken < paidRewardPerToken &&
+                paidRewardPerToken <= rewardPerToken(),
             "Invalid paidRewardPerToken value."
         );
 
