@@ -8,6 +8,7 @@ interface IMuonNodeManager {
         address stakerAddress;
         string peerId; // p2p peer ID
         bool active;
+        uint64 tier;
         uint64[] roles;
         uint256 startTime;
         uint256 endTime;

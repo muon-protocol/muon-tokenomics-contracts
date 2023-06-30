@@ -62,6 +62,10 @@ describe("MuonNodeManager", function () {
       expect(node.stakerAddress).eq(staker1.address);
       expect(node.peerId).eq(peerId1);
       expect(node.active).to.be.true;
+      expect(node.tier).eq(0);
+      expect(node.startTime).to.be.greaterThan(0);
+      expect(node.endTime).eq(0);
+      expect(node.lastEditTime).eq(node.startTime);
     });
 
     it("should not allow adding a node with a duplicate nodeAddress.", async function () {
@@ -360,4 +364,22 @@ describe("MuonNodeManager", function () {
       expect(nodeRoles).to.deep.equal([2]);
     });
   });
+
+  describe("node tier", function () {
+    it("the DAO should be able to set node tier", async function () {
+      const nodeId = 1;
+      let node = await nodeManager.nodes(nodeId);
+      expect(node.tier).eq(0);
+      let tier = await nodeManager.getTier(nodeId);
+      expect(tier).eq(0);
+
+      const newTier = 2;
+      await nodeManager.setTier(nodeId, newTier);
+      node = await nodeManager.nodes(nodeId);
+      expect(node.tier).eq(newTier);
+      tier = await nodeManager.getTier(nodeId);
+      expect(tier).eq(newTier);
+    });
+  });
+
 });

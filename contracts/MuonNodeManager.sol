@@ -38,9 +38,6 @@ contract MuonNodeManager is
     // role id => node id => index + 1
     mapping(uint64 => mapping(uint64 => uint16)) public nodesRoles;
 
-    // node id => tier
-    mapping(uint64 => uint64) public tiers;
-
     /**
      * @dev Modifier to update the lastUpdateTime state variable.
      */
@@ -114,6 +111,7 @@ contract MuonNodeManager is
             nodeAddress: _nodeAddress,
             stakerAddress: _stakerAddress,
             peerId: _peerId,
+            tier: 0,
             active: _active,
             roles: new uint64[](0),
             startTime: block.timestamp,
@@ -304,7 +302,7 @@ contract MuonNodeManager is
      * @return The tier of the node.
      */
     function getTier(uint64 nodeId) external view override returns (uint64) {
-        return tiers[nodeId];
+        return nodes[nodeId].tier;
     }
 
     /**
@@ -314,7 +312,7 @@ contract MuonNodeManager is
      * @param tier The tier to set.
      */
     function setTier(uint64 nodeId, uint64 tier) public onlyRole(DAO_ROLE) {
-        tiers[nodeId] = tier;
+        nodes[nodeId].tier = tier;
         emit TierSet(nodeId, tier);
     }
 
