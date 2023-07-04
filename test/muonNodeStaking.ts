@@ -140,7 +140,6 @@ describe("MuonNodeStaking", function () {
     expect((await nodeStaking.users(staker1.address)).tokenId).eq(1);
     expect(await nodeStaking.valueOfBondedToken(1)).eq(ONE.mul(3000));
     // newly added nodes' tiers are 0, so their maximum stake amount will be 0
-    expect(await nodeManager.getTier(1)).eq(0);
     expect((await nodeStaking.users(staker1.address)).balance).eq(0);
     // admins can set tier
     await nodeManager.connect(daoRole).setTier(1, 1);
@@ -252,15 +251,14 @@ describe("MuonNodeStaking", function () {
       await nodeStaking
         .connect(staker3)
         .addMuonNode(node3.address, peerId3, tokenId);
-      const nodeId = (await nodeManager.nodeAddressInfo(node3.address)).id;
-
+      const node = await nodeManager.nodeAddressInfo(node3.address);
       expect((await nodeStaking.users(staker3.address)).tokenId).eq(tokenId);
       expect(await nodeStaking.valueOfBondedToken(tokenId)).eq(ONE.mul(30000));
       // newly added nodes' tiers are 0, so their maximum stake amount will be 0
-      expect(await nodeManager.getTier(nodeId)).eq(0);
+      expect(node.tier).eq(0);
       expect((await nodeStaking.users(staker3.address)).balance).eq(0);
       // admins can set tier
-      await nodeManager.connect(daoRole).setTier(nodeId, 1);
+      await nodeManager.connect(daoRole).setTier(node.id, 1);
       await nodeStaking.connect(staker3).updateStaking();
       expect((await nodeStaking.users(staker3.address)).balance)
         .eq(await nodeStaking.tiersMaxStakeAmount(1))
@@ -293,8 +291,8 @@ describe("MuonNodeStaking", function () {
       const userStake1 = (await nodeStaking.users(staker2.address)).balance;
       const value1 = await nodeStaking.valueOfBondedToken(tokenId);
 
-      const tier = await nodeManager.getTier(nodeId);
-      const maxStakeAmount = await nodeStaking.tiersMaxStakeAmount(tier);
+      const node = await nodeManager.nodes(nodeId);
+      const maxStakeAmount = await nodeStaking.tiersMaxStakeAmount(node.tier);
 
       // mint required tokens for staker
       const pionAmount = ONE.mul(1000);
@@ -339,8 +337,8 @@ describe("MuonNodeStaking", function () {
       const userStake1 = (await nodeStaking.users(staker2.address)).balance;
       const value1 = await nodeStaking.valueOfBondedToken(tokenId);
 
-      const tier = await nodeManager.getTier(nodeId);
-      const maxStakeAmount = await nodeStaking.tiersMaxStakeAmount(tier);
+      const node = await nodeManager.nodes(nodeId);
+      const maxStakeAmount = await nodeStaking.tiersMaxStakeAmount(node.tier);
 
       // mint required bondedPion NFT for staker
       const pionAmount = ONE.mul(1000);

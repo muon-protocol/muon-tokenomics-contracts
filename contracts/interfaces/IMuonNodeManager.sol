@@ -29,5 +29,4 @@ interface IMuonNodeManager {
         view
         returns (Node memory node);
 
-    function getTier(uint64 nodeId) external view returns (uint8);
 }

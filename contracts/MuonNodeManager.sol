@@ -297,15 +297,6 @@ contract MuonNodeManager is
     }
 
     /**
-     * @dev Returns the tier of a node.
-     * @param nodeId The ID of the node.
-     * @return The tier of the node.
-     */
-    function getTier(uint64 nodeId) external view override returns (uint8) {
-        return nodes[nodeId].tier;
-    }
-
-    /**
      * @dev Sets the tier of a node.
      * Only callable by the DAO_ROLE.
      * @param nodeId The ID of the node.

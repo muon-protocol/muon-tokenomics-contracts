@@ -370,15 +370,11 @@ describe("MuonNodeManager", function () {
       const nodeId = 1;
       let node = await nodeManager.nodes(nodeId);
       expect(node.tier).eq(0);
-      let tier = await nodeManager.getTier(nodeId);
-      expect(tier).eq(0);
 
       const newTier = 2;
       await nodeManager.setTier(nodeId, newTier);
       node = await nodeManager.nodes(nodeId);
       expect(node.tier).eq(newTier);
-      tier = await nodeManager.getTier(nodeId);
-      expect(tier).eq(newTier);
     });
   });
 

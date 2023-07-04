@@ -310,8 +310,7 @@ contract MuonNodeStaking is
             "Insufficient amount to run a node."
         );
 
-        uint8 tier = nodeManager.getTier(node.id);
-        uint256 maxStakeAmount = tiersMaxStakeAmount[tier];
+        uint256 maxStakeAmount = tiersMaxStakeAmount[node.tier];
         if (amount > maxStakeAmount) {
             amount = maxStakeAmount;
         }
