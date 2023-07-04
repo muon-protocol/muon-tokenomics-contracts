@@ -8,7 +8,7 @@ interface IMuonNodeManager {
         address stakerAddress;
         string peerId; // p2p peer ID
         bool active;
-        uint64 tier;
+        uint8 tier;
         uint64[] roles;
         uint256 startTime;
         uint256 endTime;
@@ -29,5 +29,5 @@ interface IMuonNodeManager {
         view
         returns (Node memory node);
 
-    function getTier(uint64 nodeId) external view returns (uint64);
+    function getTier(uint64 nodeId) external view returns (uint8);
 }

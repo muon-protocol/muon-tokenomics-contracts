@@ -65,7 +65,7 @@ contract MuonNodeStaking is
     mapping(address => uint256) public stakingTokensMultiplier;
 
     // tier => maxStakeAmount
-    mapping(uint64 => uint256) public tiersMaxStakeAmount;
+    mapping(uint8 => uint256) public tiersMaxStakeAmount;
 
     /**
      * @dev Modifier that updates the reward parameters
@@ -310,7 +310,7 @@ contract MuonNodeStaking is
             "Insufficient amount to run a node."
         );
 
-        uint64 tier = nodeManager.getTier(node.id);
+        uint8 tier = nodeManager.getTier(node.id);
         uint256 maxStakeAmount = tiersMaxStakeAmount[tier];
         if (amount > maxStakeAmount) {
             amount = maxStakeAmount;
@@ -596,7 +596,7 @@ contract MuonNodeStaking is
         emit MuonPublicKeyUpdated(_muonPublicKey);
     }
 
-    function setTierMaxStakeAmount(uint64 tier, uint256 maxStakeAmount)
+    function setTierMaxStakeAmount(uint8 tier, uint256 maxStakeAmount)
         public
         onlyRole(DAO_ROLE)
     {
@@ -626,5 +626,5 @@ contract MuonNodeStaking is
     event StakeLocked(address indexed stakerAddress);
     event StakeUnlocked(address indexed stakerAddress);
     event StakingTokenUpdated(address indexed token, uint256 multiplier);
-    event TierMaxStakeUpdated(uint64 tier, uint256 maxStakeAmount);
+    event TierMaxStakeUpdated(uint8 tier, uint256 maxStakeAmount);
 }

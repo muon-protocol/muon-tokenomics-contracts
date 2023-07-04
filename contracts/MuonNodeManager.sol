@@ -301,7 +301,7 @@ contract MuonNodeManager is
      * @param nodeId The ID of the node.
      * @return The tier of the node.
      */
-    function getTier(uint64 nodeId) external view override returns (uint64) {
+    function getTier(uint64 nodeId) external view override returns (uint8) {
         return nodes[nodeId].tier;
     }
 
@@ -311,7 +311,7 @@ contract MuonNodeManager is
      * @param nodeId The ID of the node.
      * @param tier The tier to set.
      */
-    function setTier(uint64 nodeId, uint64 tier) public onlyRole(DAO_ROLE) {
+    function setTier(uint64 nodeId, uint8 tier) public onlyRole(DAO_ROLE) {
         nodes[nodeId].tier = tier;
         emit TierSet(nodeId, tier);
     }
@@ -350,5 +350,5 @@ contract MuonNodeManager is
     event NodeRoleAdded(bytes32 indexed role, uint64 roleId);
     event NodeRoleSet(uint64 indexed nodeId, uint64 indexed roleId);
     event NodeRoleUnset(uint64 indexed nodeId, uint64 indexed roleId);
-    event TierSet(uint64 indexed nodeId, uint64 indexed tier);
+    event TierSet(uint64 indexed nodeId, uint8 indexed tier);
 }
