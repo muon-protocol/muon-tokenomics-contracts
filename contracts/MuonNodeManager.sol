@@ -92,13 +92,11 @@ contract MuonNodeManager is
         address _stakerAddress,
         string calldata _peerId,
         bool _active
-    )
-        public
-        override
-        onlyRole(ADMIN_ROLE)
-        updateState
-    {
-        require(nodeAddressIds[_nodeAddress] == 0, "Node address is already registered.");
+    ) public override onlyRole(ADMIN_ROLE) updateState {
+        require(
+            nodeAddressIds[_nodeAddress] == 0,
+            "Node address is already registered."
+        );
 
         require(
             stakerAddressIds[_stakerAddress] == 0,
@@ -302,7 +300,12 @@ contract MuonNodeManager is
      * @param nodeId The ID of the node.
      * @param tier The tier to set.
      */
-    function setTier(uint64 nodeId, uint8 tier) public onlyRole(DAO_ROLE) {
+    function setTier(uint64 nodeId, uint8 tier)
+        public
+        onlyRole(DAO_ROLE)
+        updateState
+        updateNodeState(nodeId)
+    {
         nodes[nodeId].tier = tier;
         emit TierSet(nodeId, tier);
     }
