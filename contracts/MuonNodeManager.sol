@@ -157,8 +157,6 @@ contract MuonNodeManager is
         updateState
         updateNodeState(nodeId)
     {
-        require(nodes[nodeId].active, "Node is not active.");
-
         require(roleId > 0 && roleId <= lastRoleId, "Invalid role ID.");
 
         require(
