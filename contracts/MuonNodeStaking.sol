@@ -233,7 +233,7 @@ contract MuonNodeStaking is
 
         bondedToken.lock(tokenId, tokens, amounts);
 
-        updateStaking();
+        _updateStaking(msg.sender);
     }
 
     /**
@@ -259,7 +259,7 @@ contract MuonNodeStaking is
 
         bondedToken.merge(tokenIdA, tokenIdB);
 
-        updateStaking();
+        _updateStaking(msg.sender);
     }
 
     /**
@@ -292,16 +292,23 @@ contract MuonNodeStaking is
      * and updates the balance and total staked amount accordingly.
      * Only callable by staker.
      */
-    function updateStaking() public updateReward(msg.sender) {
+    function updateStaking() external {
+        _updateStaking(msg.sender);
+    }
+
+    function _updateStaking(address stakerAddress)
+        private
+        updateReward(stakerAddress)
+    {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
-            msg.sender
+            stakerAddress
         );
         require(
             node.id != 0 && node.active,
             "No active node found for the staker address."
         );
 
-        uint256 tokenId = users[msg.sender].tokenId;
+        uint256 tokenId = users[stakerAddress].tokenId;
         require(tokenId != 0, "No staking found for the staker address.");
 
         uint256 amount = valueOfBondedToken(tokenId);
@@ -315,11 +322,11 @@ contract MuonNodeStaking is
             amount = maxStakeAmount;
         }
 
-        if (users[msg.sender].balance != amount) {
-            totalStaked -= users[msg.sender].balance;
-            users[msg.sender].balance = amount;
+        if (users[stakerAddress].balance != amount) {
+            totalStaked -= users[stakerAddress].balance;
+            users[stakerAddress].balance = amount;
             totalStaked += amount;
-            emit Staked(msg.sender, amount);
+            emit Staked(stakerAddress, amount);
         }
     }
 
@@ -601,6 +608,19 @@ contract MuonNodeStaking is
     {
         tiersMaxStakeAmount[tier] = maxStakeAmount;
         emit TierMaxStakeUpdated(tier, maxStakeAmount);
+    }
+
+    function setMuonNodeTire(address stakerAddress, uint8 tier)
+        public
+        onlyRole(DAO_ROLE)
+        updateReward(stakerAddress)
+    {
+        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
+            stakerAddress
+        );
+
+        nodeManager.setTier(node.id, tier);
+        _updateStaking(stakerAddress);
     }
 
     // ======== Events ========

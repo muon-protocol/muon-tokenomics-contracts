@@ -300,10 +300,12 @@ contract MuonNodeManager is
      */
     function setTier(uint64 nodeId, uint8 tier)
         public
-        onlyRole(DAO_ROLE)
+        onlyRole(ADMIN_ROLE)
         updateState
         updateNodeState(nodeId)
     {
+        require(nodes[nodeId].tier != tier, "Already set.");
+
         nodes[nodeId].tier = tier;
         emit TierSet(nodeId, tier);
     }
