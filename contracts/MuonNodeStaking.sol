@@ -47,9 +47,6 @@ contract MuonNodeStaking is
 
     IERC20 public muonToken;
 
-    // reqId => bool
-    mapping(bytes => bool) public withdrawRequests;
-
     // stakerAddress => bool
     mapping(address => bool) public lockedStakes;
 
@@ -342,11 +339,6 @@ contract MuonNodeStaking is
         bytes calldata reqId,
         SchnorrSign calldata signature
     ) public {
-        require(
-            !withdrawRequests[reqId],
-            "This request has already been submitted."
-        );
-
         require(amount > 0, "Invalid withdrawal amount.");
 
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
@@ -392,7 +384,6 @@ contract MuonNodeStaking is
         users[msg.sender].pendingRewards = 0;
         users[msg.sender].paidReward += amount;
         users[msg.sender].paidRewardPerToken = paidRewardPerToken;
-        withdrawRequests[reqId] = true;
         muonToken.transfer(msg.sender, amount);
         emit RewardGot(reqId, msg.sender, amount);
     }

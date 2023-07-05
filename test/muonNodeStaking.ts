@@ -654,7 +654,7 @@ describe("MuonNodeStaking", function () {
 
       // try to withdraw again
       await expect(getReward(staker1, withdrawSig)).to.be.revertedWith(
-        "This request has already been submitted."
+        "Invalid signature."
       );
     });
 
@@ -941,9 +941,7 @@ describe("MuonNodeStaking", function () {
 
     it("DAO should have the ability to update the minStakeAmount", async function () {
       const newVal = ONE.mul(10);
-      await expect(
-        nodeStaking.connect(daoRole).setMinStakeAmount(newVal)
-      )
+      await expect(nodeStaking.connect(daoRole).setMinStakeAmount(newVal))
         .to.emit(nodeStaking, "MinStakeAmountUpdated")
         .withArgs(newVal);
 
