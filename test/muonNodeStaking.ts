@@ -943,15 +943,15 @@ describe("MuonNodeStaking", function () {
       expect(await nodeStaking.exitPendingPeriod()).eq(newVal);
     });
 
-    it("DAO should have the ability to update the minStakeAmountPerNode", async function () {
+    it("DAO should have the ability to update the minStakeAmount", async function () {
       const newVal = ONE.mul(10);
       await expect(
-        nodeStaking.connect(daoRole).setMinStakeAmountPerNode(newVal)
+        nodeStaking.connect(daoRole).setMinStakeAmount(newVal)
       )
-        .to.emit(nodeStaking, "MinStakeAmountPerNodeUpdated")
+        .to.emit(nodeStaking, "MinStakeAmountUpdated")
         .withArgs(newVal);
 
-      expect(await nodeStaking.minStakeAmountPerNode()).eq(newVal);
+      expect(await nodeStaking.minStakeAmount()).eq(newVal);
     });
 
     it("DAO should have the ability to update the muonAppId", async function () {

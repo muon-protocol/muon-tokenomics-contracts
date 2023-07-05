@@ -22,7 +22,7 @@ contract MuonNodeStaking is
 
     uint256 public exitPendingPeriod;
 
-    uint256 public minStakeAmountPerNode;
+    uint256 public minStakeAmount;
 
     uint256 public periodFinish;
 
@@ -101,7 +101,7 @@ contract MuonNodeStaking is
         bondedToken = IBondedToken(bondedTokenAddress);
 
         exitPendingPeriod = 7 days;
-        minStakeAmountPerNode = 1000 ether;
+        minStakeAmount = 1000 ether;
         REWARD_PERIOD = 30 days;
 
         validatePubKey(_muonPublicKey.x);
@@ -306,7 +306,7 @@ contract MuonNodeStaking is
 
         uint256 amount = valueOfBondedToken(tokenId);
         require(
-            amount >= minStakeAmountPerNode,
+            amount >= minStakeAmount,
             "Insufficient amount to run a node."
         );
 
@@ -458,7 +458,7 @@ contract MuonNodeStaking is
 
         uint256 amount = valueOfBondedToken(tokenId);
         require(
-            amount >= minStakeAmountPerNode,
+            amount >= minStakeAmount,
             "Insufficient amount to run a node."
         );
 
@@ -575,9 +575,9 @@ contract MuonNodeStaking is
         emit ExitPendingPeriodUpdated(val);
     }
 
-    function setMinStakeAmountPerNode(uint256 val) public onlyRole(DAO_ROLE) {
-        minStakeAmountPerNode = val;
-        emit MinStakeAmountPerNodeUpdated(val);
+    function setMinStakeAmount(uint256 val) public onlyRole(DAO_ROLE) {
+        minStakeAmount = val;
+        emit MinStakeAmountUpdated(val);
     }
 
     function setMuonAppId(uint256 _muonAppId) public onlyRole(DAO_ROLE) {
@@ -619,7 +619,7 @@ contract MuonNodeStaking is
         uint256 rewardPeriod
     );
     event ExitPendingPeriodUpdated(uint256 exitPendingPeriod);
-    event MinStakeAmountPerNodeUpdated(uint256 minStakeAmountPerNode);
+    event MinStakeAmountUpdated(uint256 minStakeAmount);
     event MuonAppIdUpdated(uint256 muonAppId);
     event MuonPublicKeyUpdated(PublicKey muonPublicKey);
     event StakeLocked(address indexed stakerAddress);
