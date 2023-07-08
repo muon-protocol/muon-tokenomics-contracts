@@ -337,6 +337,32 @@ contract MuonNodeManager is
         emit NodeRoleAdded(role, lastRoleId);
     }
 
+    /**
+     * @dev Retrieves various contract information.
+     * @param configKeys An array of configuration keys to retrieve.
+     * @return lastUpdateTime The value of lastUpdateTime state variable.
+     * @return lastNodeId The value of lastNodeId state variable.
+     * @return lastRoleId The value of lastRoleId state variable.
+     * @return configValues An array of configuration values corresponding to the keys.
+     */
+    function getInfo(string[] memory configKeys)
+        public
+        view
+        returns (
+            uint256,
+            uint64,
+            uint64,
+            string[] memory
+        )
+    {
+        string[] memory configValues = new string[](configKeys.length);
+
+        for (uint256 i = 0; i < configKeys.length; i++) {
+            configValues[i] = configs[configKeys[i]];
+        }
+        return (lastUpdateTime, lastNodeId, lastRoleId, configValues);
+    }
+
     // ======== Events ========
     event NodeAdded(uint64 indexed nodeId, Node node);
     event NodeDeactivated(uint64 indexed nodeId);

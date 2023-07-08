@@ -363,6 +363,33 @@ describe("MuonNodeManager", function () {
       nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([2]);
     });
+
+    it("should retrieve contract information and configuration values", async () => {
+      // Add a node
+      await nodeManager
+        .connect(adminRole)
+        .addNode(node1.address, staker1.address, peerId1, true);
+
+      // Add a node role
+      const roleDeployers = ethers.utils.solidityKeccak256(
+        ["string"],
+        ["deployers"]
+      );
+      await nodeManager.connect(daoRole).addNodeRole(roleDeployers);
+
+      // Set the config values
+      const configKeys = ["key1", "key2", "key3"];
+      const configValues = ["value1", "value2", "value3"];
+      for (let i = 0; i < configKeys.length; i++) {
+        await nodeManager.setConfig(configKeys[i], configValues[i]);
+      }
+
+      const info = await nodeManager.getInfo(configKeys);
+      expect(info[0]).to.equal(await nodeManager.lastUpdateTime());
+      expect(info[1]).to.equal(await nodeManager.lastNodeId());
+      expect(info[2]).to.equal(await nodeManager.lastRoleId());
+      expect(info[3]).to.deep.equal(configValues);
+    });
   });
 
   describe("node tier", function () {
