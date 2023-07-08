@@ -805,16 +805,23 @@ describe("MuonNodeStaking", function () {
       await evmIncreaseTime(60 * 60 * 24 * 10);
 
       const earned2 = await nodeStaking.earned(staker1.address);
+      const totalStakedBefore = await nodeStaking.totalStaked();
 
       // requestExit
       await nodeStaking.connect(staker1).requestExit();
 
+      expect(await nodeStaking.totalStaked()).eq(
+        BigInt(totalStakedBefore) - BigInt(u1.balance)
+      );
+
       const u2 = await nodeStaking.users(staker1.address);
-      expect(u2.balance).eq(ONE.mul(1000));
+      expect(u2.balance).eq(0);
       expect(u2.pendingRewards).to.closeTo(earned2, 2000);
       expect(u2.tokenId).eq(1);
 
-      expect(await nodeStaking.earned(staker1.address)).to.be.equal(0);
+      expect(await nodeStaking.earned(staker1.address)).to.be.equal(
+        u2.pendingRewards
+      );
 
       // generate a dummy tts sig to withdraw 80% of the maximum reward
       const paidReward2 = (await nodeStaking.users(staker1.address)).paidReward;
@@ -850,12 +857,16 @@ describe("MuonNodeStaking", function () {
       expect(u3.pendingRewards).eq(0);
       expect(u3.tokenId).eq(0);
       expect(await bondedPion.ownerOf(1)).eq(staker1.address);
+
+      expect(await nodeStaking.earned(staker1.address)).to.be.equal(0);
     });
 
     it("should disallow stakers from withdrawing their stake if it is locked", async function () {
       // Distribute rewards
       const initialReward = thirtyDays * 3000;
       await distributeRewards(initialReward);
+
+      const rewardRate = await nodeStaking.rewardRate();
 
       // Increase time by 10 days
       await evmIncreaseTime(60 * 60 * 24 * 10);
@@ -882,8 +893,8 @@ describe("MuonNodeStaking", function () {
       await evmIncreaseTime(60 * 60 * 24 * 7);
 
       const u1 = await nodeStaking.users(staker1.address);
-      expect(u1.balance).eq(ONE.mul(1000));
-      expect(u1.pendingRewards).to.closeTo(earned1, 2000);
+      expect(u1.balance).eq(0);
+      expect(u1.pendingRewards).to.closeTo(earned1, rewardRate);
       expect(u1.paidReward).eq(0);
 
       // try to withdraw the stake
@@ -903,6 +914,10 @@ describe("MuonNodeStaking", function () {
       expect(u2.balance).eq(0);
       expect(u2.pendingRewards).eq(u1.pendingRewards);
       expect(u2.paidReward).eq(0);
+
+      expect(await nodeStaking.earned(staker1.address)).to.be.equal(
+        u1.pendingRewards
+      );
 
       expect(await bondedPion.ownerOf(1)).eq(staker1.address);
 
@@ -926,6 +941,8 @@ describe("MuonNodeStaking", function () {
       expect(u3.balance).eq(0);
       expect(u3.pendingRewards).eq(0);
       expect(u3.paidReward).eq(u2.pendingRewards);
+
+      expect(await nodeStaking.earned(staker1.address)).to.be.equal(0);
     });
   });
 

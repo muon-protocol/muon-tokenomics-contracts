@@ -372,14 +372,7 @@ contract MuonNodeStaking is
         );
         require(verified, "Invalid signature.");
 
-        if (node.active) {
-            require(amount <= earned(msg.sender), "Invalid withdrawal amount.");
-        } else {
-            require(
-                amount <= users[msg.sender].pendingRewards,
-                "Invalid withdrawal amount."
-            );
-        }
+        require(amount <= earned(msg.sender), "Invalid withdrawal amount.");
 
         users[msg.sender].pendingRewards = 0;
         users[msg.sender].paidReward += amount;
@@ -401,6 +394,7 @@ contract MuonNodeStaking is
         require(node.active, "The node is already deactivated.");
 
         totalStaked -= users[msg.sender].balance;
+        users[msg.sender].balance = 0;
         nodeManager.deactiveNode(node.id);
         emit ExitRequested(msg.sender);
     }
@@ -425,10 +419,6 @@ contract MuonNodeStaking is
             "Your stake is currently locked and cannot be withdrawn."
         );
 
-        uint256 amount = users[msg.sender].balance;
-        require(amount > 0, "No staked balance available for withdrawal.");
-
-        users[msg.sender].balance = 0;
         uint256 tokenId = users[msg.sender].tokenId;
         require(tokenId != 0, "No staking found for the staker address.");
 
@@ -501,13 +491,12 @@ contract MuonNodeStaking is
      * @return The current reward per token.
      */
     function rewardPerToken() public view returns (uint256) {
-        return
-            totalStaked == 0
-                ? rewardPerTokenStored
-                : rewardPerTokenStored +
-                    (((lastTimeRewardApplicable() - lastUpdateTime) *
-                        rewardRate *
-                        1e18) / totalStaked);
+        if (totalStaked == 0) {
+            return rewardPerTokenStored;
+        } else {
+            return rewardPerTokenStored +
+                (lastTimeRewardApplicable() - lastUpdateTime) * rewardRate * 1e18 / totalStaked;
+        }
     }
 
     /**
@@ -516,19 +505,8 @@ contract MuonNodeStaking is
      * @return The total rewards earned by a node.
      */
     function earned(address account) public view returns (uint256) {
-        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
-            account
-        );
-
-        if (!node.active) {
-            return 0;
-        } else {
-            return
-                (users[account].balance *
-                    (rewardPerToken() - users[account].paidRewardPerToken)) /
-                1e18 +
-                users[account].pendingRewards;
-        }
+        User memory user = users[account];
+        return user.balance * (rewardPerToken() - user.paidRewardPerToken) / 1e18 + user.pendingRewards;
     }
 
     /**
