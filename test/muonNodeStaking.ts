@@ -669,27 +669,32 @@ describe("MuonNodeStaking", function () {
       // Check staker1's balance before withdrawal
       const balance1 = await pion.balanceOf(staker1.address);
 
-      // generate a dummy tts sig to withdraw 100% of the maximum reward
+      // generate a dummy tts sig to withdraw 80% of the maximum reward
       const paidReward1 = (await nodeStaking.users(staker1.address)).paidReward;
       const rewardPerToken1 = await nodeStaking.rewardPerToken();
-      const earned1 = await nodeStaking.earned(staker1.address);
+      const earned1 = (await nodeStaking.earned(staker1.address));
       const withdrawSig1 = await getDummySig(
         staker1.address,
         paidReward1,
         rewardPerToken1,
-        earned1
+        earned1 * 80 / 100
       );
+
+      const notPaidRewards1 = await nodeStaking.notPaidRewards();
+      expect(notPaidRewards1).eq(0);
 
       // withdraw 100% of reward
       await getReward(staker1, withdrawSig1);
 
+      const notPaidRewards2 = await nodeStaking.notPaidRewards();
+      expect(notPaidRewards2).eq(earned1 * 20 / 100);
+
       // check the result of withdrawing
       const staker1Stake1 = await nodeStaking.users(staker1.address);
-      expect(staker1Stake1.paidReward).eq(earned1);
+      expect(staker1Stake1.paidReward).eq(earned1 * 80 / 100);
       expect(staker1Stake1.paidRewardPerToken).eq(rewardPerToken1);
       const balance2 = await pion.balanceOf(staker1.address);
-      expect(balance2).eq(balance1.add(earned1));
-      expect(balance2).eq(Math.floor(initialReward / 9));
+      expect(balance2).eq(balance1.add(earned1 * 80 / 100));
 
       // Increase time by 5 days
       await evmIncreaseTime(60 * 60 * 24 * 5);
@@ -708,14 +713,57 @@ describe("MuonNodeStaking", function () {
       // withdraw 100% of reward
       await getReward(staker1, withdrawSig2);
 
+      const notPaidRewards3 = await nodeStaking.notPaidRewards();
+      expect(notPaidRewards3).eq(notPaidRewards2);
+
       // check the result of withdrawing
       const staker1Stake2 = await nodeStaking.users(staker1.address);
-      expect(staker1Stake2.paidReward).eq(earned1.add(earned2));
+      expect(staker1Stake2.paidReward).eq(earned2.add(earned1 * 80 / 100));
       expect(staker1Stake2.paidRewardPerToken).eq(rewardPerToken2);
       const balance3 = await pion.balanceOf(staker1.address);
       expect(balance3).eq(balance2.add(earned2));
-      // tolerance for 2 seconds
-      expect(balance3).to.closeTo(Math.floor(initialReward / 6), 3000);
+
+      // Increase time by 5 days
+      await evmIncreaseTime(60 * 60 * 24 * 5);
+
+      // generate a dummy tts sig to withdraw 50% of the maximum reward
+      const paidReward3 = (await nodeStaking.users(staker1.address)).paidReward;
+      const rewardPerToken3 = await nodeStaking.rewardPerToken();
+      const earned3 = await nodeStaking.earned(staker1.address);
+      const withdrawSig3 = await getDummySig(
+        staker1.address,
+        paidReward3,
+        rewardPerToken3,
+        earned3 * 50 / 100
+      );
+
+      // withdraw 100% of reward
+      await getReward(staker1, withdrawSig3);
+
+      const notPaidRewards4 = await nodeStaking.notPaidRewards();
+      expect(notPaidRewards4).eq(notPaidRewards3.add(earned3 * 50 / 100));
+
+      // check the result of withdrawing
+      const staker1Stake3 = await nodeStaking.users(staker1.address);
+      expect(staker1Stake3.paidReward).eq(staker1Stake2.paidReward.add(earned3 * 50 / 100));
+      expect(staker1Stake3.paidRewardPerToken).eq(rewardPerToken3);
+      const balance4 = await pion.balanceOf(staker1.address);
+      expect(balance4).eq(balance3.add(earned3 * 50 / 100));
+
+      // Redistribute rewards
+      const periodFinish = await nodeStaking.periodFinish();
+      const now = await nodeStaking.lastTimeRewardApplicable();
+      const rewardRate = await nodeStaking.rewardRate();
+      const remaining = periodFinish.sub(now);
+      const leftover = remaining.mul(rewardRate);
+      const expectedRewardRate = Math.floor((leftover.add(notPaidRewards4)).div(30*24*60*60));
+      await distributeRewards(0);
+      const newRewardRate = await nodeStaking.rewardRate();
+      expect(BigInt(expectedRewardRate)).eq(newRewardRate);
+
+      const notPaidRewards5 = await nodeStaking.notPaidRewards();
+      expect(notPaidRewards5).eq(0);
+
     });
 
     it("should disallow stakers from withdrawing more than their rewards by obtaining multiple signatures", async function () {

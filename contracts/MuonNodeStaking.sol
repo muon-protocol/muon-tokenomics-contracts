@@ -20,6 +20,8 @@ contract MuonNodeStaking is
 
     uint256 public totalStaked;
 
+    uint256 public notPaidRewards;
+
     uint256 public exitPendingPeriod;
 
     uint256 public minStakeAmount;
@@ -346,8 +348,9 @@ contract MuonNodeStaking is
         );
         require(node.id != 0, "Node not found for the staker address.");
 
+        User memory user = users[msg.sender];
         require(
-            users[msg.sender].paidRewardPerToken <= paidRewardPerToken &&
+            user.paidRewardPerToken <= paidRewardPerToken &&
                 paidRewardPerToken <= rewardPerToken(),
             "Invalid paidRewardPerToken value."
         );
@@ -358,7 +361,7 @@ contract MuonNodeStaking is
                 muonAppId,
                 reqId,
                 msg.sender,
-                users[msg.sender].paidReward,
+                user.paidReward,
                 paidRewardPerToken,
                 amount
             )
@@ -371,6 +374,10 @@ contract MuonNodeStaking is
             muonPublicKey
         );
         require(verified, "Invalid signature.");
+
+        uint256 maxReward = user.balance * (paidRewardPerToken - user.paidRewardPerToken) / 1e18 + user.pendingRewards;
+        require(amount <= maxReward, "Invalid withdrawal amount.");
+        notPaidRewards += (maxReward - amount);
 
         require(amount <= earned(msg.sender), "Invalid withdrawal amount.");
 
@@ -474,12 +481,14 @@ contract MuonNodeStaking is
         onlyRole(REWARD_ROLE)
     {
         if (block.timestamp >= periodFinish) {
-            rewardRate = reward / REWARD_PERIOD;
+            rewardRate = (reward + notPaidRewards) / REWARD_PERIOD;
         } else {
             uint256 remaining = periodFinish - block.timestamp;
             uint256 leftover = remaining * rewardRate;
-            rewardRate = (reward + leftover) / REWARD_PERIOD;
+            rewardRate = (reward + leftover + notPaidRewards) / REWARD_PERIOD;
         }
+
+        notPaidRewards = 0;
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp + REWARD_PERIOD;
         emit RewardsDistributed(reward, block.timestamp, REWARD_PERIOD);
