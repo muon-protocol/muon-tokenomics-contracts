@@ -311,10 +311,7 @@ contract MuonNodeStaking is
         require(tokenId != 0, "No staking found for the staker address.");
 
         uint256 amount = valueOfBondedToken(tokenId);
-        require(
-            amount >= minStakeAmount,
-            "Insufficient amount to run a node."
-        );
+        require(amount >= minStakeAmount, "Insufficient amount to run a node.");
 
         uint256 maxStakeAmount = tiersMaxStakeAmount[node.tier];
         if (amount > maxStakeAmount) {
@@ -375,7 +372,10 @@ contract MuonNodeStaking is
         );
         require(verified, "Invalid signature.");
 
-        uint256 maxReward = user.balance * (paidRewardPerToken - user.paidRewardPerToken) / 1e18 + user.pendingRewards;
+        uint256 maxReward = (user.balance *
+            (paidRewardPerToken - user.paidRewardPerToken)) /
+            1e18 +
+            user.pendingRewards;
         require(amount <= maxReward, "Invalid withdrawal amount.");
         notPaidRewards += (maxReward - amount);
 
@@ -452,10 +452,7 @@ contract MuonNodeStaking is
         );
 
         uint256 amount = valueOfBondedToken(tokenId);
-        require(
-            amount >= minStakeAmount,
-            "Insufficient amount to run a node."
-        );
+        require(amount >= minStakeAmount, "Insufficient amount to run a node.");
 
         bondedToken.transferFrom(msg.sender, address(this), tokenId);
         users[msg.sender].tokenId = tokenId;
@@ -503,8 +500,12 @@ contract MuonNodeStaking is
         if (totalStaked == 0) {
             return rewardPerTokenStored;
         } else {
-            return rewardPerTokenStored +
-                (lastTimeRewardApplicable() - lastUpdateTime) * rewardRate * 1e18 / totalStaked;
+            return
+                rewardPerTokenStored +
+                ((lastTimeRewardApplicable() - lastUpdateTime) *
+                    rewardRate *
+                    1e18) /
+                totalStaked;
         }
     }
 
@@ -515,7 +516,10 @@ contract MuonNodeStaking is
      */
     function earned(address account) public view returns (uint256) {
         User memory user = users[account];
-        return user.balance * (rewardPerToken() - user.paidRewardPerToken) / 1e18 + user.pendingRewards;
+        return
+            (user.balance * (rewardPerToken() - user.paidRewardPerToken)) /
+            1e18 +
+            user.pendingRewards;
     }
 
     /**
