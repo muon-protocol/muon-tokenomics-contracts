@@ -44,6 +44,11 @@ describe("MuonNodeStaking", function () {
     x: "0x570513014bbf0ddc4b0ac6b71164ff1186f26053a4df9facd79d9268456090c9",
     parity: 0,
   };
+
+  const tier1 = 1;
+  const tier2 = 2;
+  const tier3 = 3;
+
   const tier1MaxStake = ONE.mul(1000);
   const tier2MaxStake = ONE.mul(4000);
   const tier3MaxStake = ONE.mul(10000);
@@ -135,22 +140,12 @@ describe("MuonNodeStaking", function () {
     await mintBondedPion(ONE.mul(1000), ONE.mul(1000), staker1);
     await bondedPion.connect(staker1).approve(nodeStaking.address, 1);
     await nodeStaking.connect(staker1).addMuonNode(node1.address, peerId1, 1);
-    // check added node
-    expect(await bondedPion.ownerOf(1)).eq(nodeStaking.address);
-    expect((await nodeStaking.users(staker1.address)).tokenId).eq(1);
-    expect(await nodeStaking.valueOfBondedToken(1)).eq(ONE.mul(3000));
-    // newly added nodes' tiers are 0, so their maximum stake amount will be 0
-    expect((await nodeStaking.users(staker1.address)).balance).eq(0);
-    // admins can set tier
-    await nodeStaking.connect(daoRole).setMuonNodeTire(staker1.address, 1);
-    expect((await nodeStaking.users(staker1.address)).balance).eq(
-      tier1MaxStake
-    );
+    await nodeStaking.connect(daoRole).setMuonNodeTire(staker1.address, tier1);
 
     await mintBondedPion(ONE.mul(1000), ONE.mul(500), staker2);
     await bondedPion.connect(staker2).approve(nodeStaking.address, 2);
     await nodeStaking.connect(staker2).addMuonNode(node2.address, peerId2, 2);
-    await nodeStaking.connect(daoRole).setMuonNodeTire(staker2.address, 2);
+    await nodeStaking.connect(daoRole).setMuonNodeTire(staker2.address, tier2);
   });
 
   const getDummySig = async (
@@ -159,9 +154,6 @@ describe("MuonNodeStaking", function () {
     rewardPerToken,
     amount
   ) => {
-    // console.log(
-    //   `http://localhost:8000/v1/?app=tss_reward_oracle_test&method=reward&params[stakerAddress]=${stakerAddress}&params[paidReward]=${paidReward}&params[rewardPerToken]=${rewardPerToken}&params[amount]=${amount}`
-    // );
     const response = await axios.get(
       `http://localhost:8000/v1/?app=tss_reward_oracle_test&method=reward&params[stakerAddress]=${stakerAddress}&params[paidReward]=${paidReward}&params[rewardPerToken]=${rewardPerToken}&params[amount]=${amount}`
     );
@@ -187,9 +179,9 @@ describe("MuonNodeStaking", function () {
     return tokenId;
   };
 
-  const distributeRewards = async (initialReward) => {
-    await pion.connect(rewardRole).transfer(nodeStaking.address, initialReward);
-    await nodeStaking.connect(rewardRole).distributeRewards(initialReward);
+  const distributeRewards = async (rewardAmount) => {
+    await pion.connect(rewardRole).transfer(nodeStaking.address, rewardAmount);
+    await nodeStaking.connect(rewardRole).distributeRewards(rewardAmount);
   };
 
   const evmIncreaseTime = async (amount) => {
@@ -219,7 +211,21 @@ describe("MuonNodeStaking", function () {
       expect(info1.stakerAddress).eq(staker1.address);
       expect(info1.peerId).eq(peerId1);
       expect(info1.active).to.be.true;
+      expect(info1.tier).eq(tier1);
+      expect(info1.roles).to.be.an("array").that.is.empty;
+      expect(info1.startTime).to.be.greaterThan(0);
       expect(info1.endTime).eq(0);
+      expect(info1.lastEditTime).to.be.greaterThan(info1.startTime);
+
+      const u1 = await nodeStaking.users(staker1.address);
+      const u1NFTvalue = await nodeStaking.valueOfBondedToken(u1.tokenId);
+      expect(u1.balance)
+        .eq(BigInt(Math.min(tier1MaxStake, u1NFTvalue)))
+        .eq(tier1MaxStake);
+      expect(u1.paidReward).eq(0);
+      expect(u1.paidRewardPerToken).eq(0);
+      expect(u1.pendingRewards).eq(0);
+      expect(u1.tokenId).eq(1);
 
       const info2 = await nodeManager.nodeAddressInfo(node2.address);
       expect(info2.id).eq(2);
@@ -227,7 +233,21 @@ describe("MuonNodeStaking", function () {
       expect(info2.stakerAddress).eq(staker2.address);
       expect(info2.peerId).eq(peerId2);
       expect(info2.active).to.be.true;
+      expect(info2.tier).eq(tier2);
+      expect(info2.roles).to.be.an("array").that.is.empty;
+      expect(info2.startTime).to.be.greaterThan(0);
       expect(info2.endTime).eq(0);
+      expect(info2.lastEditTime).to.be.greaterThan(info2.startTime);
+
+      const u2 = await nodeStaking.users(staker2.address);
+      const u2NFTvalue = await nodeStaking.valueOfBondedToken(u2.tokenId);
+      expect(u2.balance)
+        .eq(BigInt(Math.min(tier2MaxStake, u2NFTvalue)))
+        .eq(u2NFTvalue);
+      expect(u2.paidReward).eq(0);
+      expect(u2.paidRewardPerToken).eq(0);
+      expect(u2.pendingRewards).eq(0);
+      expect(u2.tokenId).eq(2);
     });
 
     it("should reject Muon nodes with insufficient stake", async function () {
@@ -256,7 +276,9 @@ describe("MuonNodeStaking", function () {
       expect(node.tier).eq(0);
       expect((await nodeStaking.users(staker3.address)).balance).eq(0);
       // admins can set tier
-      await nodeStaking.connect(daoRole).setMuonNodeTire(staker3.address, 1);
+      await nodeStaking
+        .connect(daoRole)
+        .setMuonNodeTire(staker3.address, tier1);
       expect((await nodeStaking.users(staker3.address)).balance)
         .eq(await nodeStaking.tiersMaxStakeAmount(1))
         .eq(tier1MaxStake);
@@ -426,7 +448,7 @@ describe("MuonNodeStaking", function () {
 
       // add new node
       await nodeStaking.connect(staker3).addMuonNode(node3.address, peerId3, 3);
-      await nodeStaking.connect(daoRole).setMuonNodeTire(staker3.address, 2);
+      await nodeStaking.connect(daoRole).setMuonNodeTire(staker3.address, tier2);
 
       // Increase time by 10 days
       targetTimestamp = distributeTimestamp + 2 * tenDays;
