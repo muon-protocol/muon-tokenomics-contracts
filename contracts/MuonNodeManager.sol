@@ -27,6 +27,12 @@ contract MuonNodeManager is
     // muon nodes check lastUpdateTime to sync their memory
     uint256 public lastUpdateTime;
 
+    struct EditLog {
+        uint64 nodeId;
+        uint256 editTime;
+    }
+    EditLog[] public editLogs;
+
     // commit_id => git commit id
     mapping(string => string) public configs;
 
@@ -52,6 +58,7 @@ contract MuonNodeManager is
      */
     modifier updateNodeState(uint64 nodeId) {
         nodes[nodeId].lastEditTime = block.timestamp;
+        editLogs.push(EditLog(nodeId, block.timestamp));
         _;
     }
 
@@ -119,6 +126,8 @@ contract MuonNodeManager is
 
         nodeAddressIds[_nodeAddress] = lastNodeId;
         stakerAddressIds[_stakerAddress] = lastNodeId;
+
+        editLogs.push(EditLog(lastNodeId, block.timestamp));
 
         emit NodeAdded(lastNodeId, nodes[lastNodeId]);
     }
@@ -238,7 +247,7 @@ contract MuonNodeManager is
      * @param _to The ending node ID.
      * @return nodesList An array of edited nodes.
      */
-    function getEditedNodes(
+    function getAllNodes(
         uint256 _lastEditTime,
         uint64 _from,
         uint64 _to
@@ -248,7 +257,7 @@ contract MuonNodeManager is
         require(_from <= _to, "Invalid range of node IDs.");
 
         nodesList = new Node[](100);
-        uint64 n = 0;
+        uint8 n = 0;
         for (uint64 i = _from; i <= _to && n < 100; i++) {
             Node memory node = nodes[i];
 
@@ -263,6 +272,45 @@ contract MuonNodeManager is
         assembly {
             mstore(nodesList, n)
         }
+    }
+
+    /**
+     * @dev Returns a list of nodes that have been edited.
+     * @param _lastEditTime The time of the last edit.
+     * @param index The index to start retrieving the edited nodes or zero.
+     * @return nodesList An array of edited nodes.
+     * @return lastIndex The index of the last retrieved edit log in the `editLogs` array.
+     */
+    function getEditedNodes(uint256 _lastEditTime, uint256 index)
+        public
+        view
+        returns (Node[] memory nodesList, uint256 lastIndex)
+    {
+        uint256 startIndex = index == 0 ? editLogs.length - 1 : index - 1;
+        nodesList = new Node[](100);
+        uint8 nodesIndex = 0;
+        lastIndex = 0;
+
+        for (uint256 i = startIndex; i > 0; i--) {
+            EditLog memory log = editLogs[i];
+
+            if (log.editTime > _lastEditTime) {
+                if (log.editTime == nodes[log.nodeId].lastEditTime) {
+                    nodesList[nodesIndex] = nodes[editLogs[i].nodeId];
+                    nodesIndex++;
+                }
+
+                if (nodesIndex == 100) {
+                    lastIndex = i;
+                    break;
+                }
+            }
+        }
+        // Resize the array to remove any unused elements
+        assembly {
+            mstore(nodesList, nodesIndex)
+        }
+        return (nodesList, lastIndex);
     }
 
     /**

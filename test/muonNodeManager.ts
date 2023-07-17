@@ -124,7 +124,7 @@ describe("MuonNodeManager", function () {
   });
 
   describe("get nods", function () {
-    it("should retrieve edited nodes or all nodes", async () => {
+    it("should retrieve all edited nodes or all nodes", async () => {
       const startTime = (await ethers.provider.getBlock("latest")).timestamp;
 
       for (let i = 1; i <= 10; i++) {
@@ -167,7 +167,7 @@ describe("MuonNodeManager", function () {
       // get the list of the nodes that were edited in the past hour
       const endTime = (await ethers.provider.getBlock("latest")).timestamp;
       const lastEditTime = endTime - 3600;
-      const editedNodesList = await nodeManager.getEditedNodes(
+      const editedNodesList = await nodeManager.getAllNodes(
         lastEditTime,
         1,
         1000
@@ -178,10 +178,59 @@ describe("MuonNodeManager", function () {
       const nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([1]);
 
-      const allNodesList = await nodeManager.getEditedNodes(0, 1, 1000);
+      const allNodesList = await nodeManager.getAllNodes(0, 1, 1000);
       expect(allNodesList).to.have.lengthOf(15);
 
       expect(await nodeManager.lastNodeId()).to.be.equal(15);
+    });
+
+    it("should retrieve edited nodes", async () => {
+      const startTime = (await ethers.provider.getBlock("latest")).timestamp;
+
+      for (let i = 1; i <= 108; i++) {
+        await nodeManager
+          .connect(adminRole)
+          .addNode(
+            ethers.Wallet.createRandom().address,
+            ethers.Wallet.createRandom().address,
+            `peerId${i}`,
+            true
+          );
+      }
+
+      const targetTimestamp = startTime + 2 * 3600;
+      await ethers.provider.send("evm_setNextBlockTimestamp", [
+        targetTimestamp,
+      ]);
+
+      const roleDeployers = ethers.utils.solidityKeccak256(
+        ["string"],
+        ["deployers"]
+      );
+
+      for (let i = 1; i <= 102; i++) {
+        await nodeManager.setTier(i, 1);
+
+        // to test that it should not return duplicate nodes
+        await nodeManager.setTier(i, 2);
+      }
+
+      // get the list of the nodes that were edited in the past hour
+      const endTime = (await ethers.provider.getBlock("latest")).timestamp;
+      const lastEditTime = endTime - 3600;
+
+      const editedNodesList = [];
+      let lastIndex = 0;
+      while (true) {
+        const resp = await nodeManager.getEditedNodes(lastEditTime, lastIndex);
+        editedNodesList.push(...resp.nodesList);
+        lastIndex = resp.lastIndex;
+        if (lastIndex == 0) {
+          break;
+        }
+      }
+
+      expect(editedNodesList).to.have.lengthOf(102);
     });
   });
 
@@ -296,12 +345,12 @@ describe("MuonNodeManager", function () {
       expect(nodeRoleSetEvents[1].args.nodeId).eq(nodeId);
       expect(nodeRoleSetEvents[1].args.roleId).eq(roleIdPoa);
 
-      const nodes = await nodeManager.getEditedNodes(0, 1, 1000);
+      const nodes = await nodeManager.getAllNodes(0, 1, 1000);
       node = nodes[0];
       nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([1, 2]);
 
-      const editedNodes = await nodeManager.getEditedNodes(startTime, 1, 1000);
+      const editedNodes = await nodeManager.getAllNodes(startTime, 1, 1000);
       node = editedNodes[0];
       nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([1, 2]);
@@ -334,12 +383,12 @@ describe("MuonNodeManager", function () {
       let nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([1, 2]);
 
-      let nodes = await nodeManager.getEditedNodes(0, 1, 1000);
+      let nodes = await nodeManager.getAllNodes(0, 1, 1000);
       node = nodes[0];
       nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([1, 2]);
 
-      let editedNodes = await nodeManager.getEditedNodes(startTime, 1, 1000);
+      let editedNodes = await nodeManager.getAllNodes(startTime, 1, 1000);
       node = editedNodes[0];
       nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([1, 2]);
@@ -353,12 +402,12 @@ describe("MuonNodeManager", function () {
       expect(nodeRoles.includes(1)).to.be.false;
       expect(nodeRoles.includes(2)).to.be.true;
 
-      nodes = await nodeManager.getEditedNodes(0, 1, 1000);
+      nodes = await nodeManager.getAllNodes(0, 1, 1000);
       node = nodes[0];
       nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([2]);
 
-      editedNodes = await nodeManager.getEditedNodes(startTime, 1, 1000);
+      editedNodes = await nodeManager.getAllNodes(startTime, 1, 1000);
       node = editedNodes[0];
       nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([2]);
@@ -404,5 +453,4 @@ describe("MuonNodeManager", function () {
       expect(node.tier).eq(newTier);
     });
   });
-
 });
