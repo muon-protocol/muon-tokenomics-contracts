@@ -445,6 +445,11 @@ contract MuonNodeStaking is
         uint256 tokenId = users[msg.sender].tokenId;
         require(tokenId != 0, "No staking found for the staker address.");
 
+        if (users[msg.sender].balance > 0) {
+            totalStaked -= users[msg.sender].balance;
+            users[msg.sender].balance = 0;
+        }
+
         bondedToken.safeTransferFrom(address(this), msg.sender, tokenId);
         users[msg.sender].tokenId = 0;
         emit Withdrawn(msg.sender, tokenId);
