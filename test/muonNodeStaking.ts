@@ -448,7 +448,9 @@ describe("MuonNodeStaking", function () {
 
       // add new node
       await nodeStaking.connect(staker3).addMuonNode(node3.address, peerId3, 3);
-      await nodeStaking.connect(daoRole).setMuonNodeTire(staker3.address, tier2);
+      await nodeStaking
+        .connect(daoRole)
+        .setMuonNodeTire(staker3.address, tier2);
 
       // Increase time by 10 days
       targetTimestamp = distributeTimestamp + 2 * tenDays;
@@ -841,6 +843,73 @@ describe("MuonNodeStaking", function () {
       await expect(getReward(staker1, withdrawSig2)).to.be.revertedWith(
         "Invalid signature."
       );
+    });
+
+    it("should enable DAO_ROLE to deactive nodes then stakers hsould be able to withdraw their stake and rewards after the lock period", async function () {
+      // Distribute rewards
+      const initialReward = thirtyDays * 3000;
+      await distributeRewards(initialReward);
+
+      // Increase time by 10 days
+      await evmIncreaseTime(60 * 60 * 24 * 10);
+
+      const earned1 = await nodeStaking.earned(staker1.address);
+      const totalStakedBefore = await nodeStaking.totalStaked();
+      const u1 = await nodeStaking.users(staker1.address);
+      expect(u1.balance).eq(ONE.mul(1000));
+
+      // deactiveMuonNode
+      await nodeStaking.connect(daoRole).deactiveMuonNode(staker1.address);
+
+      expect(await nodeStaking.totalStaked()).eq(
+        BigInt(totalStakedBefore) - BigInt(u1.balance)
+      );
+
+      const u2 = await nodeStaking.users(staker1.address);
+      expect(u2.balance).eq(0);
+      expect(u2.pendingRewards).to.closeTo(earned1, 2000);
+      expect(u2.tokenId).eq(1);
+
+      expect(await nodeStaking.earned(staker1.address)).to.be.equal(
+        u2.pendingRewards
+      );
+
+      expect((await nodeManager.stakerAddressInfo(staker1.address)).active).to
+        .be.false;
+
+      const balance1 = await pion.balanceOf(staker1.address);
+
+      // generate a dummy tts sig to withdraw 80% of the maximum reward
+      const paidReward = (await nodeStaking.users(staker1.address)).paidReward;
+      const rewardPerToken = await nodeStaking.rewardPerToken();
+      const earned2 = parseInt((u2.pendingRewards * 80) / 100);
+      const withdrawSig = await getDummySig(
+        staker1.address,
+        paidReward,
+        rewardPerToken,
+        earned2
+      );
+      // withdraw 80% of reward
+      await getReward(staker1, withdrawSig);
+
+      const balance2 = await pion.balanceOf(staker1.address);
+      expect(balance2).to.closeTo(balance1.add(earned2), 2000);
+
+      // Increase time by 7 days
+      await evmIncreaseTime(60 * 60 * 24 * 7);
+
+      expect(await bondedPion.ownerOf(1)).eq(nodeStaking.address);
+
+      // withdraw
+      await nodeStaking.connect(staker1).withdraw();
+
+      const u3 = await nodeStaking.users(staker1.address);
+      expect(u3.balance).eq(0);
+      expect(u3.pendingRewards).eq(0);
+      expect(u3.tokenId).eq(0);
+      expect(await bondedPion.ownerOf(1)).eq(staker1.address);
+
+      expect(await nodeStaking.earned(staker1.address)).to.be.equal(0);
     });
 
     it("should enable exited stakers to withdraw their stake and rewards after the lock period", async function () {

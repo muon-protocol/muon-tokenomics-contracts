@@ -392,18 +392,34 @@ contract MuonNodeStaking is
      * @dev Allows stakers to request to exit from the network.
      * Stakers can withdraw the staked amount after the exit pending period has passed.
      */
-    function requestExit() public updateReward(msg.sender) {
+    function requestExit() external {
+        _deactiveMuonNode(msg.sender);
+
+        emit ExitRequested(msg.sender);
+    }
+
+    /**
+     * @dev Allows DAO_ROLE to deactive a node.
+     * @param stakerAddress The address of the staker.
+     */
+    function deactiveMuonNode(address stakerAddress) public onlyRole(DAO_ROLE) {
+        _deactiveMuonNode(stakerAddress);
+    }
+
+    function _deactiveMuonNode(address stakerAddress)
+        private
+        updateReward(stakerAddress)
+    {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
-            msg.sender
+            stakerAddress
         );
         require(node.id != 0, "Node not found for the staker address.");
 
         require(node.active, "The node is already deactivated.");
 
-        totalStaked -= users[msg.sender].balance;
-        users[msg.sender].balance = 0;
+        totalStaked -= users[stakerAddress].balance;
+        users[stakerAddress].balance = 0;
         nodeManager.deactiveNode(node.id);
-        emit ExitRequested(msg.sender);
     }
 
     /**
