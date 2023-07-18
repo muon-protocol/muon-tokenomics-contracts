@@ -294,17 +294,19 @@ contract MuonNodeManager is
         for (uint256 i = startIndex + 1; i > 0; i--) {
             EditLog memory log = editLogs[i - 1];
 
-            if (log.editTime > _lastEditTime) {
-                if (log.editTime == nodes[log.nodeId].lastEditTime) {
-                    nodesList[nodesIndex] = nodes[log.nodeId];
-                    nodesList[nodesIndex].roles = getNodeRoles(log.nodeId);
-                    nodesIndex++;
-                }
+            if (log.editTime <= _lastEditTime) {
+                break;
+            }
 
-                if (nodesIndex == _max) {
-                    lastIndex = i - 1;
-                    break;
-                }
+            if (log.editTime == nodes[log.nodeId].lastEditTime) {
+                nodesList[nodesIndex] = nodes[log.nodeId];
+                nodesList[nodesIndex].roles = getNodeRoles(log.nodeId);
+                nodesIndex++;
+            }
+
+            if (nodesIndex == _max) {
+                lastIndex = i - 1;
+                break;
             }
         }
         // Resize the array to remove any unused elements
