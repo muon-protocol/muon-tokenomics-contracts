@@ -281,28 +281,28 @@ contract MuonNodeManager is
      * @return nodesList An array of edited nodes.
      * @return lastIndex The index of the last retrieved edit log in the `editLogs` array.
      */
-    function getEditedNodes(uint256 _lastEditTime, uint256 index, uint8 _max)
-        public
-        view
-        returns (Node[] memory nodesList, uint256 lastIndex)
-    {
+    function getEditedNodes(
+        uint256 _lastEditTime,
+        uint256 index,
+        uint16 _max
+    ) public view returns (Node[] memory nodesList, uint256 lastIndex) {
         uint256 startIndex = index == 0 ? editLogs.length - 1 : index - 1;
         nodesList = new Node[](_max);
         uint8 nodesIndex = 0;
         lastIndex = 0;
 
-        for (uint256 i = startIndex; i > 0; i--) {
-            EditLog memory log = editLogs[i];
+        for (uint256 i = startIndex + 1; i > 0; i--) {
+            EditLog memory log = editLogs[i - 1];
 
             if (log.editTime > _lastEditTime) {
                 if (log.editTime == nodes[log.nodeId].lastEditTime) {
-                    nodesList[nodesIndex] = nodes[editLogs[i].nodeId];
-                    nodesList[nodesIndex].roles = getNodeRoles(editLogs[i].nodeId);
+                    nodesList[nodesIndex] = nodes[log.nodeId];
+                    nodesList[nodesIndex].roles = getNodeRoles(log.nodeId);
                     nodesIndex++;
                 }
 
                 if (nodesIndex == _max) {
-                    lastIndex = i;
+                    lastIndex = i - 1;
                     break;
                 }
             }
