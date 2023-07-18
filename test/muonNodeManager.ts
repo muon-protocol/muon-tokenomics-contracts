@@ -178,10 +178,21 @@ describe("MuonNodeManager", function () {
       const nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles).to.deep.equal([1]);
 
-      const allNodesList = await nodeManager.getAllNodes(0, 1, 1000);
-      expect(allNodesList).to.have.lengthOf(15);
+      for (let i = 1; i <= 100; i++) {
+        await nodeManager
+          .connect(adminRole)
+          .addNode(
+            ethers.Wallet.createRandom().address,
+            ethers.Wallet.createRandom().address,
+            `peerId${i}`,
+            true
+          );
+      }
 
-      expect(await nodeManager.lastNodeId()).to.be.equal(15);
+      const allNodesList = await nodeManager.getAllNodes(0, 1, 1000);
+      expect(allNodesList).to.have.lengthOf(115);
+
+      expect(await nodeManager.lastNodeId()).to.be.equal(115);
     });
 
     it("should retrieve edited nodes", async () => {
@@ -222,7 +233,11 @@ describe("MuonNodeManager", function () {
       const editedNodesList = [];
       let lastIndex = 0;
       while (true) {
-        const resp = await nodeManager.getEditedNodes(lastEditTime, lastIndex);
+        const resp = await nodeManager.getEditedNodes(
+          lastEditTime,
+          lastIndex,
+          50
+        );
         editedNodesList.push(...resp.nodesList);
         lastIndex = resp.lastIndex;
         if (lastIndex == 0) {
