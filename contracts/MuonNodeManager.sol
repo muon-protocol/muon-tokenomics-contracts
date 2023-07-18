@@ -256,9 +256,9 @@ contract MuonNodeManager is
         _to = _to <= lastNodeId ? _to : lastNodeId;
         require(_from <= _to, "Invalid range of node IDs.");
 
-        nodesList = new Node[](100);
+        nodesList = new Node[](_to - _from + 1);
         uint8 n = 0;
-        for (uint64 i = _from; i <= _to && n < 100; i++) {
+        for (uint64 i = _from; i <= _to; i++) {
             Node memory node = nodes[i];
 
             if (node.lastEditTime > _lastEditTime) {
