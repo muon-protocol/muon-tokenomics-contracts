@@ -297,6 +297,7 @@ contract MuonNodeManager is
             if (log.editTime > _lastEditTime) {
                 if (log.editTime == nodes[log.nodeId].lastEditTime) {
                     nodesList[nodesIndex] = nodes[editLogs[i].nodeId];
+                    nodesList[nodesIndex].roles = getNodeRoles(editLogs[i].nodeId);
                     nodesIndex++;
                 }
 
