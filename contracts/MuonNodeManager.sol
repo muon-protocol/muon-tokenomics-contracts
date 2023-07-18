@@ -281,13 +281,13 @@ contract MuonNodeManager is
      * @return nodesList An array of edited nodes.
      * @return lastIndex The index of the last retrieved edit log in the `editLogs` array.
      */
-    function getEditedNodes(uint256 _lastEditTime, uint256 index)
+    function getEditedNodes(uint256 _lastEditTime, uint256 index, uint8 _max)
         public
         view
         returns (Node[] memory nodesList, uint256 lastIndex)
     {
         uint256 startIndex = index == 0 ? editLogs.length - 1 : index - 1;
-        nodesList = new Node[](100);
+        nodesList = new Node[](_max);
         uint8 nodesIndex = 0;
         lastIndex = 0;
 
@@ -301,7 +301,7 @@ contract MuonNodeManager is
                     nodesIndex++;
                 }
 
-                if (nodesIndex == 100) {
+                if (nodesIndex == _max) {
                     lastIndex = i;
                     break;
                 }
@@ -311,6 +311,7 @@ contract MuonNodeManager is
         assembly {
             mstore(nodesList, nodesIndex)
         }
+
         return (nodesList, lastIndex);
     }
 
