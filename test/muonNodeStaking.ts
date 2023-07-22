@@ -41,8 +41,8 @@ describe("MuonNodeStaking", function () {
   const muonAppId =
     "1566432988060666016333351531685287278204879617528298155619493815104572633831";
   const muonPublicKey = {
-    x: "0x570513014bbf0ddc4b0ac6b71164ff1186f26053a4df9facd79d9268456090c9",
-    parity: 0,
+    x: "0x708f698d97949cd4385f02b1cc5283d394e9a7da68e3b6d2871c830b0751a5bb",
+    parity: 1,
   };
 
   const tier1 = 1;
@@ -1135,10 +1135,9 @@ describe("MuonNodeStaking", function () {
     it("DAO should have the ability to add a new staking token", async () => {
       const dummyToken = ethers.Wallet.createRandom();
       const dummyTokenMultiplier = ONE.mul(3);
-      await nodeStaking.updateStakingTokens(
-        [dummyToken.address],
-        [dummyTokenMultiplier]
-      );
+      await nodeStaking
+        .connect(daoRole)
+        .updateStakingTokens([dummyToken.address], [dummyTokenMultiplier]);
       expect(await nodeStaking.isStakingToken(dummyToken.address)).eq(3);
       expect(await nodeStaking.stakingTokens(2)).eq(dummyToken.address);
       expect(await nodeStaking.stakingTokensMultiplier(dummyToken.address)).eq(
@@ -1151,10 +1150,9 @@ describe("MuonNodeStaking", function () {
         muonTokenMultiplier
       );
       const newMuonTokenMultiplier = ONE.mul(3);
-      await nodeStaking.updateStakingTokens(
-        [pion.address],
-        [newMuonTokenMultiplier]
-      );
+      await nodeStaking
+        .connect(daoRole)
+        .updateStakingTokens([pion.address], [newMuonTokenMultiplier]);
       expect(await nodeStaking.isStakingToken(pion.address)).eq(1);
       expect(await nodeStaking.isStakingToken(pionLp.address)).eq(2);
       expect(await nodeStaking.stakingTokens(0)).eq(pion.address);
@@ -1170,10 +1168,9 @@ describe("MuonNodeStaking", function () {
     it("DAO should have the ability to remove a staking token", async () => {
       const newMuonTokenMultiplier = 0;
       expect(await nodeStaking.stakingTokens(0)).eq(pion.address);
-      await nodeStaking.updateStakingTokens(
-        [pion.address],
-        [newMuonTokenMultiplier]
-      );
+      await nodeStaking
+        .connect(daoRole)
+        .updateStakingTokens([pion.address], [newMuonTokenMultiplier]);
       expect(await nodeStaking.isStakingToken(pion.address)).eq(0);
       expect(await nodeStaking.stakingTokens(0)).eq(pionLp.address);
       expect(await nodeStaking.stakingTokensMultiplier(pion.address)).eq(
@@ -1196,20 +1193,22 @@ describe("MuonNodeStaking", function () {
         muonLpTokenMultiplier
       );
 
-      await nodeStaking.updateStakingTokens(
-        [
-          pion.address,
-          dummyToken1.address,
-          dummyToken2.address,
-          pionLp.address,
-        ],
-        [
-          newMuonTokenMultiplier,
-          dummyToken1Multiplier,
-          dummyToken2Multiplier,
-          newMuonLpTokenMultiplier,
-        ]
-      );
+      await nodeStaking
+        .connect(daoRole)
+        .updateStakingTokens(
+          [
+            pion.address,
+            dummyToken1.address,
+            dummyToken2.address,
+            pionLp.address,
+          ],
+          [
+            newMuonTokenMultiplier,
+            dummyToken1Multiplier,
+            dummyToken2Multiplier,
+            newMuonLpTokenMultiplier,
+          ]
+        );
 
       expect(await nodeStaking.isStakingToken(pion.address)).eq(1);
       expect(await nodeStaking.isStakingToken(pionLp.address)).eq(2);
@@ -1245,10 +1244,12 @@ describe("MuonNodeStaking", function () {
         muonLpTokenMultiplier
       );
 
-      await nodeStaking.updateStakingTokens(
-        [pionLp.address, pion.address],
-        [newMuonLpTokenMultiplier, newMuonTokenMultiplier]
-      );
+      await nodeStaking
+        .connect(daoRole)
+        .updateStakingTokens(
+          [pionLp.address, pion.address],
+          [newMuonLpTokenMultiplier, newMuonTokenMultiplier]
+        );
 
       expect(await nodeStaking.isStakingToken(pion.address)).eq(0);
       expect(await nodeStaking.isStakingToken(pionLp.address)).eq(1);
@@ -1259,6 +1260,53 @@ describe("MuonNodeStaking", function () {
       expect(await nodeStaking.stakingTokensMultiplier(pionLp.address)).eq(
         newMuonLpTokenMultiplier
       );
+    });
+
+    it("DAO should have the ability to pause and unpause specific functions", async function () {
+      const functionName = "addMuonNode";
+      expect(await nodeStaking.functionPauseStates(functionName)).to.be.false;
+
+      const tx = await nodeStaking.connect(daoRole).pauseFunction(functionName);
+      const pausedFunction = await tx
+        .wait()
+        .then((receipt) => receipt.events[0].args.functionName);
+      expect(pausedFunction).eq(functionName);
+
+      expect(await nodeStaking.functionPauseStates(functionName)).to.be.true;
+
+      const tokenId = await mintBondedPion(
+        ONE.mul(1000),
+        ONE.mul(1000),
+        staker3
+      );
+      await bondedPion.connect(staker3).approve(nodeStaking.address, tokenId);
+
+      await expect(
+        nodeStaking
+          .connect(staker3)
+          .addMuonNode(node3.address, peerId3, tokenId)
+      ).to.be.revertedWith("Function is paused.");
+
+      const tx2 = await nodeStaking
+        .connect(daoRole)
+        .unpauseFunction(functionName);
+      const unpausedFunction = await tx2
+        .wait()
+        .then((receipt) => receipt.events[0].args.functionName);
+      expect(unpausedFunction).eq(functionName);
+
+      expect(await nodeStaking.functionPauseStates(functionName)).to.be.false;
+
+      await nodeStaking
+        .connect(staker3)
+        .addMuonNode(node3.address, peerId3, tokenId);
+
+      const node = await nodeManager.stakerAddressInfo(staker3.address);
+      expect(node.id).eq(3);
+      expect(node.nodeAddress).eq(node3.address);
+      expect(node.stakerAddress).eq(staker3.address);
+      expect(node.peerId).eq(peerId3);
+      expect(node.active).to.be.true;
     });
   });
 });
