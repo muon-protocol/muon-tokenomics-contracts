@@ -464,8 +464,8 @@ contract MuonNodeStaking is
             users[msg.sender].balance = 0;
         }
 
-        bondedToken.safeTransferFrom(address(this), msg.sender, tokenId);
         users[msg.sender].tokenId = 0;
+        bondedToken.safeTransferFrom(address(this), msg.sender, tokenId);
         emit Withdrawn(msg.sender, tokenId);
     }
 
