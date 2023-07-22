@@ -489,8 +489,10 @@ contract MuonNodeStaking is
         uint256 amount = valueOfBondedToken(tokenId);
         require(amount >= minStakeAmount, "Insufficient amount to run a node.");
 
-        bondedToken.transferFrom(msg.sender, address(this), tokenId);
         users[msg.sender].tokenId = tokenId;
+
+        bondedToken.transferFrom(msg.sender, address(this), tokenId);
+        require(bondedToken.ownerOf(tokenId) == address(this), "Not received the NFT.");
 
         nodeManager.addNode(
             nodeAddress,
