@@ -66,6 +66,22 @@ contract MuonNodeStaking is
     // tier => maxStakeAmount
     mapping(uint8 => uint256) public tiersMaxStakeAmount;
 
+    struct FunctionPauseState {
+        bool isPaused;
+    }
+    mapping(string => FunctionPauseState) public functionPauseStates;
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is not paused.
+     */
+    modifier whenFunctionNotPaused(string memory functionName) {
+        require(
+            !functionPauseStates[functionName].isPaused,
+            "Function is paused."
+        );
+        _;
+    }
+
     /**
      * @dev Modifier that updates the reward parameters
      * before all of the functions that can change the rewards.
@@ -191,7 +207,7 @@ contract MuonNodeStaking is
     function lockToBondedToken(
         address[] memory tokens,
         uint256[] memory amounts
-    ) external {
+    ) external whenFunctionNotPaused("lockToBondedToken") {
         require(
             tokens.length == amounts.length,
             "Mismatch in the length of arrays."
@@ -240,7 +256,10 @@ contract MuonNodeStaking is
      * The staker must first approve the contract to transfer the tokenIdA on their behalf.
      * @param tokenIdA The id of the first token to be merged.
      */
-    function mergeBondedTokens(uint256 tokenIdA) external {
+    function mergeBondedTokens(uint256 tokenIdA)
+        external
+        whenFunctionNotPaused("mergeBondedTokens")
+    {
         require(
             bondedToken.ownerOf(tokenIdA) == msg.sender,
             "The sender is not the owner of the NFT."
@@ -337,7 +356,7 @@ contract MuonNodeStaking is
         uint256 paidRewardPerToken,
         bytes calldata reqId,
         SchnorrSign calldata signature
-    ) public {
+    ) public whenFunctionNotPaused("getReward") {
         require(amount > 0, "Invalid withdrawal amount.");
 
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
@@ -425,7 +444,7 @@ contract MuonNodeStaking is
     /**
      * @dev Allows stakers to withdraw their staked amount after exiting the network and exit pending period has passed.
      */
-    function withdraw() public {
+    function withdraw() public whenFunctionNotPaused("withdraw") {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             msg.sender
         );
@@ -466,7 +485,7 @@ contract MuonNodeStaking is
         address nodeAddress,
         string calldata peerId,
         uint256 tokenId
-    ) public {
+    ) public whenFunctionNotPaused("addMuonNode") {
         require(
             users[msg.sender].tokenId == 0,
             "You have already staked an NFT. Multiple staking is not allowed."
@@ -626,6 +645,24 @@ contract MuonNodeStaking is
         _updateStaking(stakerAddress);
     }
 
+    function pauseFunction(string memory functionName)
+        external
+        onlyRole(DAO_ROLE)
+    {
+        functionPauseStates[functionName].isPaused = true;
+
+        emit Paused(functionName);
+    }
+
+    function unpauseFunction(string memory functionName)
+        external
+        onlyRole(DAO_ROLE)
+    {
+        functionPauseStates[functionName].isPaused = false;
+
+        emit Unpaused(functionName);
+    }
+
     // ======== Events ========
     event Staked(address indexed stakerAddress, uint256 amount);
     event Withdrawn(address indexed stakerAddress, uint256 tokenId);
@@ -649,4 +686,6 @@ contract MuonNodeStaking is
     event StakeUnlocked(address indexed stakerAddress);
     event StakingTokenUpdated(address indexed token, uint256 multiplier);
     event TierMaxStakeUpdated(uint8 tier, uint256 maxStakeAmount);
+    event Paused(string functionName);
+    event Unpaused(string functionName);
 }
