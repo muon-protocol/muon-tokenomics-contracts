@@ -20,6 +20,8 @@ contract MuonNodeStaking is
     bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
     bytes32 public constant REWARD_ROLE = keccak256("REWARD_ROLE");
 
+    uint256 public constant REWARD_PERIOD = 30 days;
+
     uint256 public totalStaked;
 
     uint256 public notPaidRewards;
@@ -35,8 +37,6 @@ contract MuonNodeStaking is
     uint256 public lastUpdateTime;
 
     uint256 public rewardPerTokenStored;
-
-    uint256 public REWARD_PERIOD;
 
     struct User {
         uint256 balance;
@@ -119,7 +119,6 @@ contract MuonNodeStaking is
 
         exitPendingPeriod = 7 days;
         minStakeAmount = 1000 ether;
-        REWARD_PERIOD = 30 days;
 
         validatePubKey(_muonPublicKey.x);
         muonPublicKey = _muonPublicKey;
