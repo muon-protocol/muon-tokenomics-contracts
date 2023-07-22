@@ -3,7 +3,8 @@ pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC721Upgradeable.sol";
 import "./utils/MuonClientBase.sol";
 import "./interfaces/IMuonNodeManager.sol";
@@ -14,6 +15,8 @@ contract MuonNodeStaking is
     AccessControlUpgradeable,
     MuonClientBase
 {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
     bytes32 public constant REWARD_ROLE = keccak256("REWARD_ROLE");
@@ -47,7 +50,7 @@ contract MuonNodeStaking is
 
     IMuonNodeManager public nodeManager;
 
-    IERC20 public muonToken;
+    IERC20Upgradeable public muonToken;
 
     // stakerAddress => bool
     mapping(address => bool) public lockedStakes;
@@ -111,7 +114,7 @@ contract MuonNodeStaking is
         _setupRole(ADMIN_ROLE, msg.sender);
         _setupRole(DAO_ROLE, msg.sender);
 
-        muonToken = IERC20(muonTokenAddress);
+        muonToken = IERC20Upgradeable(muonTokenAddress);
         nodeManager = IMuonNodeManager(nodeManagerAddress);
         bondedToken = IBondedToken(bondedTokenAddress);
 
@@ -221,18 +224,15 @@ contract MuonNodeStaking is
         );
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
+            uint256 balance = IERC20Upgradeable(tokens[i]).balanceOf(address(this));
 
-            require(
-                IERC20(tokens[i]).transferFrom(
-                    msg.sender,
-                    address(this),
-                    amounts[i]
-                ),
-                "Failed to transfer tokens from your account to the staker contract."
+            IERC20Upgradeable(tokens[i]).safeTransferFrom(
+                msg.sender,
+                address(this),
+                amounts[i]
             );
 
-            uint256 receivedAmount = IERC20(tokens[i]).balanceOf(
+            uint256 receivedAmount = IERC20Upgradeable(tokens[i]).balanceOf(
                 address(this)
             ) - balance;
             require(
@@ -240,10 +240,7 @@ contract MuonNodeStaking is
                 "The discrepancy between the received amount and the claimed amount."
             );
 
-            require(
-                IERC20(tokens[i]).approve(address(bondedToken), amounts[i]),
-                "Failed to approve to the bondedToken contract to spend tokens on your behalf."
-            );
+            IERC20Upgradeable(tokens[i]).safeApprove(address(bondedToken), amounts[i]);
         }
 
         bondedToken.lock(tokenId, tokens, amounts);
@@ -403,7 +400,7 @@ contract MuonNodeStaking is
         users[msg.sender].pendingRewards = 0;
         users[msg.sender].paidReward += amount;
         users[msg.sender].paidRewardPerToken = paidRewardPerToken;
-        muonToken.transfer(msg.sender, amount);
+        muonToken.safeTransfer(msg.sender, amount);
         emit RewardGot(reqId, msg.sender, amount);
     }
 
