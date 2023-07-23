@@ -164,10 +164,7 @@ contract MuonNodeStaking is
         address[] calldata tokens,
         uint256[] calldata multipliers
     ) external onlyRole(DAO_ROLE) {
-        require(
-            tokens.length == multipliers.length,
-            "Mismatch in the length of arrays."
-        );
+        require(tokens.length == multipliers.length, "Arrays length mismatch.");
 
         for (uint256 i = 0; i < tokens.length; i++) {
             address token = tokens[i];
@@ -186,10 +183,7 @@ contract MuonNodeStaking is
 
                 stakingTokensMultiplier[token] = multiplier;
             } else {
-                require(
-                    multiplier > 0,
-                    "Invalid multiplier. The multiplier value must be greater than 0."
-                );
+                require(multiplier > 0, "Invalid multiplier.");
                 stakingTokens.push(token);
                 stakingTokensMultiplier[token] = multiplier;
                 isStakingToken[token] = uint16(stakingTokens.length);
@@ -209,13 +203,10 @@ contract MuonNodeStaking is
         address[] memory tokens,
         uint256[] memory amounts
     ) external whenFunctionNotPaused("lockToBondedToken") {
-        require(
-            tokens.length == amounts.length,
-            "Mismatch in the length of arrays."
-        );
+        require(tokens.length == amounts.length, "Arrays length mismatch.");
 
         uint256 tokenId = users[msg.sender].tokenId;
-        require(tokenId != 0, "No staking found for the staker address.");
+        require(tokenId != 0, "No staking found.");
         require(
             bondedToken.ownerOf(tokenId) == address(this),
             "Staking contract is not the owner of the NFT."
@@ -262,14 +253,14 @@ contract MuonNodeStaking is
     {
         require(
             bondedToken.ownerOf(tokenIdA) == msg.sender,
-            "The sender is not the owner of the NFT."
+            "Caller is not token owner."
         );
 
         uint256 tokenIdB = users[msg.sender].tokenId;
-        require(tokenIdB != 0, "No staking found for the staker address.");
+        require(tokenIdB != 0, "No staking found.");
         require(
             bondedToken.ownerOf(tokenIdB) == address(this),
-            "Staking contract is not the owner of the NFT."
+            "Staking contract is not token owner."
         );
 
         bondedToken.transferFrom(msg.sender, address(this), tokenIdA);
@@ -321,16 +312,13 @@ contract MuonNodeStaking is
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
-        require(
-            node.id != 0 && node.active,
-            "No active node found for the staker address."
-        );
+        require(node.id != 0 && node.active, "No active node found.");
 
         uint256 tokenId = users[stakerAddress].tokenId;
-        require(tokenId != 0, "No staking found for the staker address.");
+        require(tokenId != 0, "No staking found.");
 
         uint256 amount = valueOfBondedToken(tokenId);
-        require(amount >= minStakeAmount, "Insufficient amount to run a node.");
+        require(amount >= minStakeAmount, "Insufficient staking.");
 
         uint256 maxStakeAmount = tiersMaxStakeAmount[node.tier];
         if (amount > maxStakeAmount) {
@@ -357,18 +345,18 @@ contract MuonNodeStaking is
         bytes calldata reqId,
         SchnorrSign calldata signature
     ) public whenFunctionNotPaused("getReward") {
-        require(amount > 0, "Invalid withdrawal amount.");
+        require(amount > 0, "Invalid amount.");
 
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             msg.sender
         );
-        require(node.id != 0, "Node not found for the staker address.");
+        require(node.id != 0, "Node not found.");
 
         User memory user = users[msg.sender];
         require(
             user.paidRewardPerToken <= paidRewardPerToken &&
                 paidRewardPerToken <= rewardPerToken(),
-            "Invalid paidRewardPerToken value."
+            "Invalid paidRewardPerToken."
         );
 
         // Verify the authenticity of the withdrawal request.
@@ -432,9 +420,6 @@ contract MuonNodeStaking is
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
-        require(node.id != 0, "Node not found for the staker address.");
-
-        require(node.active, "The node is already deactivated.");
 
         totalStaked -= users[stakerAddress].balance;
         users[stakerAddress].balance = 0;
@@ -448,7 +433,7 @@ contract MuonNodeStaking is
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             msg.sender
         );
-        require(node.id != 0, "Node not found for the staker address.");
+        require(node.id != 0, "Node not found.");
 
         require(
             !node.active &&
@@ -456,13 +441,10 @@ contract MuonNodeStaking is
             "The exit time has not been reached yet."
         );
 
-        require(
-            !lockedStakes[msg.sender],
-            "Your stake is currently locked and cannot be withdrawn."
-        );
+        require(!lockedStakes[msg.sender], "Stake is locked.");
 
         uint256 tokenId = users[msg.sender].tokenId;
-        require(tokenId != 0, "No staking found for the staker address.");
+        require(tokenId != 0, "No staking found.");
 
         if (users[msg.sender].balance > 0) {
             totalStaked -= users[msg.sender].balance;
@@ -486,13 +468,10 @@ contract MuonNodeStaking is
         string calldata peerId,
         uint256 tokenId
     ) public whenFunctionNotPaused("addMuonNode") {
-        require(
-            users[msg.sender].tokenId == 0,
-            "You have already staked an NFT. Multiple staking is not allowed."
-        );
+        require(users[msg.sender].tokenId == 0, "Already staked an NFT.");
 
         uint256 amount = valueOfBondedToken(tokenId);
-        require(amount >= minStakeAmount, "Insufficient amount to run a node.");
+        require(amount >= minStakeAmount, "Insufficient staking.");
 
         users[msg.sender].tokenId = tokenId;
 
@@ -584,7 +563,7 @@ contract MuonNodeStaking is
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
-        require(node.id != 0, "Node not found for the staker address.");
+        require(node.id != 0, "Node not found.");
 
         lockedStakes[stakerAddress] = true;
         emit StakeLocked(stakerAddress);
@@ -596,7 +575,7 @@ contract MuonNodeStaking is
      * @param stakerAddress The address of the staker.
      */
     function unlockStake(address stakerAddress) public onlyRole(REWARD_ROLE) {
-        require(lockedStakes[stakerAddress], "The stake is not locked.");
+        require(lockedStakes[stakerAddress], "Already unlocked.");
 
         lockedStakes[stakerAddress] = false;
         emit StakeUnlocked(stakerAddress);

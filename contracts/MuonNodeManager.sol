@@ -100,14 +100,11 @@ contract MuonNodeManager is
         string calldata _peerId,
         bool _active
     ) public override onlyRole(ADMIN_ROLE) updateState {
-        require(
-            nodeAddressIds[_nodeAddress] == 0,
-            "Node address is already registered."
-        );
+        require(nodeAddressIds[_nodeAddress] == 0, "Duplicate node address.");
 
         require(
             stakerAddressIds[_stakerAddress] == 0,
-            "Staker address is already registered."
+            "Duplicate staker address."
         );
 
         lastNodeId++;
@@ -144,9 +141,9 @@ contract MuonNodeManager is
         updateState
         updateNodeState(nodeId)
     {
-        require(nodes[nodeId].id == nodeId, "Node ID not found.");
+        require(nodes[nodeId].id == nodeId, "Node not found.");
 
-        require(nodes[nodeId].active, "Node is already deactivated.");
+        require(nodes[nodeId].active, "Already deactivated.");
 
         nodes[nodeId].endTime = block.timestamp;
         nodes[nodeId].active = false;
@@ -168,10 +165,7 @@ contract MuonNodeManager is
     {
         require(roleId > 0 && roleId <= lastRoleId, "Invalid role ID.");
 
-        require(
-            nodesRoles[roleId][nodeId] == 0,
-            "Role is already assigned to this node."
-        );
+        require(nodesRoles[roleId][nodeId] == 0, "Already set.");
 
         nodes[nodeId].roles.push(roleId);
         nodesRoles[roleId][nodeId] = uint16(nodes[nodeId].roles.length);
@@ -192,10 +186,7 @@ contract MuonNodeManager is
     {
         require(roleId > 0 && roleId <= lastRoleId, "Invalid role ID.");
 
-        require(
-            nodesRoles[roleId][nodeId] > 0,
-            "Node does not have this role."
-        );
+        require(nodesRoles[roleId][nodeId] > 0, "Already unset.");
 
         uint16 index = nodesRoles[roleId][nodeId] - 1;
         uint64 lRoleId = nodes[nodeId].roles[nodes[nodeId].roles.length - 1];
@@ -254,7 +245,7 @@ contract MuonNodeManager is
     ) public view returns (Node[] memory nodesList) {
         _from = _from > 0 ? _from : 1;
         _to = _to <= lastNodeId ? _to : lastNodeId;
-        require(_from <= _to, "Invalid range of node IDs.");
+        require(_from <= _to, "Invalid range.");
 
         nodesList = new Node[](_to - _from + 1);
         uint8 n = 0;
@@ -384,7 +375,7 @@ contract MuonNodeManager is
      * @param role The role to be added.
      */
     function addNodeRole(bytes32 role) public onlyRole(DAO_ROLE) {
-        require(roleIds[role] == 0, "This role has already been added.");
+        require(roleIds[role] == 0, "Already added.");
 
         lastRoleId++;
         roleIds[role] = lastRoleId;
