@@ -77,7 +77,7 @@ describe("MuonNodeManager", function () {
         nodeManager
           .connect(adminRole)
           .addNode(node1.address, staker2.address, peerId2, true)
-      ).to.be.revertedWith("Node address is already registered.");
+      ).to.be.revertedWith("Duplicate node address.");
     });
 
     it("should not allow adding a node with a duplicate stakerAddress", async function () {
@@ -89,7 +89,7 @@ describe("MuonNodeManager", function () {
         nodeManager
           .connect(adminRole)
           .addNode(node2.address, staker1.address, peerId2, true)
-      ).to.be.revertedWith("Staker address is already registered.");
+      ).to.be.revertedWith("Duplicate staker address.");
     });
   });
 
@@ -113,13 +113,13 @@ describe("MuonNodeManager", function () {
       await nodeManager.connect(adminRole).deactiveNode(1);
       await expect(
         nodeManager.connect(adminRole).deactiveNode(1)
-      ).to.be.revertedWith("Node is already deactivated.");
+      ).to.be.revertedWith("Already deactivated.");
     });
 
     it("should not allow deactivating a non-existent node", async function () {
       await expect(
         nodeManager.connect(adminRole).deactiveNode(2)
-      ).to.be.revertedWith("Node ID not found.");
+      ).to.be.revertedWith("Node not found.");
     });
   });
 
@@ -459,6 +459,10 @@ describe("MuonNodeManager", function () {
   describe("node tier", function () {
     it("the DAO should be able to set node tier", async function () {
       const nodeId = 1;
+      await nodeManager
+        .connect(adminRole)
+        .addNode(node1.address, staker1.address, peerId1, true);
+
       let node = await nodeManager.nodes(nodeId);
       expect(node.tier).eq(0);
 

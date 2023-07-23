@@ -256,7 +256,7 @@ describe("MuonNodeStaking", function () {
         nodeStaking
           .connect(staker3)
           .addMuonNode(node3.address, peerId3, tokenId)
-      ).to.be.revertedWith("Insufficient amount to run a node.");
+      ).to.be.revertedWith("Insufficient staking.");
     });
 
     it("nodes are restricted from staking more than the MaxStakeAmount of their tier", async function () {
@@ -609,7 +609,7 @@ describe("MuonNodeStaking", function () {
 
       // try to getReward by non-stakers
       await expect(getReward(user1, withdrawSig)).to.be.revertedWith(
-        "Node not found for the staker address."
+        "Node not found."
       );
     });
 
@@ -1016,12 +1016,12 @@ describe("MuonNodeStaking", function () {
       // try to lock non exist staker
       await expect(
         nodeStaking.connect(rewardRole).lockStake(user1.address)
-      ).to.be.revertedWith("Node not found for the staker address.");
+      ).to.be.revertedWith("Node not found.");
 
       // try to unlock not locked staker
       await expect(
         nodeStaking.connect(rewardRole).unlockStake(staker1.address)
-      ).to.be.revertedWith("The stake is not locked.");
+      ).to.be.revertedWith("Already unlocked.");
 
       const earned1 = await nodeStaking.earned(staker1.address);
 
@@ -1041,7 +1041,7 @@ describe("MuonNodeStaking", function () {
 
       // try to withdraw the stake
       await expect(nodeStaking.connect(staker1).withdraw()).to.be.revertedWith(
-        "Your stake is currently locked and cannot be withdrawn."
+        "Stake is locked."
       );
 
       // unlock the stake
