@@ -263,7 +263,7 @@ contract MuonNodeStaking is
             "Staking contract is not token owner."
         );
 
-        bondedToken.transferFrom(msg.sender, address(this), tokenIdA);
+        bondedToken.safeTransferFrom(msg.sender, address(this), tokenIdA);
         bondedToken.approve(address(bondedToken), tokenIdA);
 
         bondedToken.merge(tokenIdA, tokenIdB);
