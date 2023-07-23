@@ -222,7 +222,9 @@ contract MuonNodeStaking is
         );
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            uint256 balance = IERC20Upgradeable(tokens[i]).balanceOf(address(this));
+            uint256 balance = IERC20Upgradeable(tokens[i]).balanceOf(
+                address(this)
+            );
 
             IERC20Upgradeable(tokens[i]).safeTransferFrom(
                 msg.sender,
@@ -238,7 +240,10 @@ contract MuonNodeStaking is
                 "The discrepancy between the received amount and the claimed amount."
             );
 
-            IERC20Upgradeable(tokens[i]).safeApprove(address(bondedToken), amounts[i]);
+            IERC20Upgradeable(tokens[i]).safeApprove(
+                address(bondedToken),
+                amounts[i]
+            );
         }
 
         bondedToken.lock(tokenId, tokens, amounts);
@@ -491,12 +496,15 @@ contract MuonNodeStaking is
 
         users[msg.sender].tokenId = tokenId;
 
-        bondedToken.transferFrom(msg.sender, address(this), tokenId);
-        require(bondedToken.ownerOf(tokenId) == address(this), "Not received the NFT.");
+        bondedToken.safeTransferFrom(msg.sender, address(this), tokenId);
+        require(
+            bondedToken.ownerOf(tokenId) == address(this),
+            "Not received the NFT."
+        );
 
         nodeManager.addNode(
             nodeAddress,
-            msg.sender, // stakerAddress,
+            msg.sender, // stakerAddress
             peerId,
             true // active
         );
@@ -592,6 +600,20 @@ contract MuonNodeStaking is
 
         lockedStakes[stakerAddress] = false;
         emit StakeUnlocked(stakerAddress);
+    }
+
+    /**
+     * @dev ERC721 token receiver function.
+     *
+     * @return bytes4 `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
+     */
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) public pure returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     // ======== DAO functions ========
