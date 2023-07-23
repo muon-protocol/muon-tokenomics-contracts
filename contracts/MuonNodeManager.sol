@@ -33,7 +33,7 @@ contract MuonNodeManager is
     }
     EditLog[] public editLogs;
 
-    // commit_id => git commit id
+    // commit id => git commit id
     mapping(string => string) public configs;
 
     uint64 public lastRoleId;
@@ -89,40 +89,40 @@ contract MuonNodeManager is
     /**
      * @dev Adds a new node.
      * Only callable by the ADMIN_ROLE.
-     * @param _nodeAddress The address of the node.
-     * @param _stakerAddress The address of the staker associated with the node.
-     * @param _peerId The peer ID of the node.
-     * @param _active Indicates whether the node is active or not.
+     * @param nodeAddress The address of the node.
+     * @param stakerAddress The address of the staker associated with the node.
+     * @param peerId The peer ID of the node.
+     * @param active Indicates whether the node is active or not.
      */
     function addNode(
-        address _nodeAddress,
-        address _stakerAddress,
-        string calldata _peerId,
-        bool _active
+        address nodeAddress,
+        address stakerAddress,
+        string calldata peerId,
+        bool active
     ) public override onlyRole(ADMIN_ROLE) updateState {
-        require(nodeAddressIds[_nodeAddress] == 0, "Duplicate node address.");
+        require(nodeAddressIds[nodeAddress] == 0, "Duplicate node address.");
 
         require(
-            stakerAddressIds[_stakerAddress] == 0,
+            stakerAddressIds[stakerAddress] == 0,
             "Duplicate staker address."
         );
 
         lastNodeId++;
         nodes[lastNodeId] = Node({
             id: lastNodeId,
-            nodeAddress: _nodeAddress,
-            stakerAddress: _stakerAddress,
-            peerId: _peerId,
+            nodeAddress: nodeAddress,
+            stakerAddress: stakerAddress,
+            peerId: peerId,
             tier: 0,
-            active: _active,
+            active: active,
             roles: new uint64[](0),
             startTime: block.timestamp,
             lastEditTime: block.timestamp,
             endTime: 0
         });
 
-        nodeAddressIds[_nodeAddress] = lastNodeId;
-        stakerAddressIds[_stakerAddress] = lastNodeId;
+        nodeAddressIds[nodeAddress] = lastNodeId;
+        stakerAddressIds[stakerAddress] = lastNodeId;
 
         editLogs.push(EditLog(lastNodeId, block.timestamp));
 
@@ -233,26 +233,26 @@ contract MuonNodeManager is
 
     /**
      * @dev Returns a list of nodes that have been edited.
-     * @param _lastEditTime The time of the last edit.
-     * @param _from The starting node ID.
-     * @param _to The ending node ID.
+     * @param lastEditTime The time of the last edit.
+     * @param startId The starting node ID.
+     * @param endId The ending node ID.
      * @return nodesList An array of edited nodes.
      */
     function getAllNodes(
-        uint256 _lastEditTime,
-        uint64 _from,
-        uint64 _to
+        uint256 lastEditTime,
+        uint64 startId,
+        uint64 endId
     ) public view returns (Node[] memory nodesList) {
-        _from = _from > 0 ? _from : 1;
-        _to = _to <= lastNodeId ? _to : lastNodeId;
-        require(_from <= _to, "Invalid range.");
+        startId = startId > 0 ? startId : 1;
+        endId = endId <= lastNodeId ? endId : lastNodeId;
+        require(startId <= endId, "Invalid range.");
 
-        nodesList = new Node[](_to - _from + 1);
+        nodesList = new Node[](endId - startId + 1);
         uint8 n = 0;
-        for (uint64 i = _from; i <= _to; i++) {
+        for (uint64 i = startId; i <= endId; i++) {
             Node memory node = nodes[i];
 
-            if (node.lastEditTime > _lastEditTime) {
+            if (node.lastEditTime > lastEditTime) {
                 nodesList[n] = node;
                 nodesList[n].roles = getNodeRoles(i);
                 n++;
@@ -267,25 +267,25 @@ contract MuonNodeManager is
 
     /**
      * @dev Returns a list of nodes that have been edited.
-     * @param _lastEditTime The time of the last edit.
+     * @param lastEditTime The time of the last edit.
      * @param index The index to start retrieving the edited nodes or zero.
      * @return nodesList An array of edited nodes.
      * @return lastIndex The index of the last retrieved edit log in the `editLogs` array.
      */
     function getEditedNodes(
-        uint256 _lastEditTime,
+        uint256 lastEditTime,
         uint256 index,
-        uint16 _max
+        uint16 maxNodesToRetrieve
     ) public view returns (Node[] memory nodesList, uint256 lastIndex) {
         uint256 startIndex = index == 0 ? editLogs.length - 1 : index - 1;
-        nodesList = new Node[](_max);
+        nodesList = new Node[](maxNodesToRetrieve);
         uint8 nodesIndex = 0;
         lastIndex = 0;
 
         for (uint256 i = startIndex + 1; i > 0; i--) {
             EditLog memory log = editLogs[i - 1];
 
-            if (log.editTime <= _lastEditTime) {
+            if (log.editTime <= lastEditTime) {
                 break;
             }
 
@@ -295,7 +295,7 @@ contract MuonNodeManager is
                 nodesIndex++;
             }
 
-            if (nodesIndex == _max) {
+            if (nodesIndex == maxNodesToRetrieve) {
                 lastIndex = i - 1;
                 break;
             }
@@ -310,29 +310,29 @@ contract MuonNodeManager is
 
     /**
      * @dev Returns the information of a node associated with the provided node address.
-     * @param _addr The node address.
+     * @param nodeAddress The node address.
      * @return node The node information.
      */
-    function nodeAddressInfo(address _addr)
+    function nodeAddressInfo(address nodeAddress)
         public
         view
         returns (Node memory node)
     {
-        node = nodes[nodeAddressIds[_addr]];
+        node = nodes[nodeAddressIds[nodeAddress]];
     }
 
     /**
      * @dev Returns the information of a node associated with the provided staker address.
-     * @param _addr The staker address.
+     * @param stakerAddress The staker address.
      * @return node The node information.
      */
-    function stakerAddressInfo(address _addr)
+    function stakerAddressInfo(address stakerAddress)
         public
         view
         override
         returns (Node memory node)
     {
-        node = nodes[stakerAddressIds[_addr]];
+        node = nodes[stakerAddressIds[stakerAddress]];
     }
 
     /**

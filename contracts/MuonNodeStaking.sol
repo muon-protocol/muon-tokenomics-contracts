@@ -88,14 +88,14 @@ contract MuonNodeStaking is
      * @dev Modifier that updates the reward parameters
      * before all of the functions that can change the rewards.
      *
-     * `_forAddress` should be address(0) when new rewards are distributing.
+     * `stakerAddress` should be address(0) when new rewards are distributing.
      */
-    modifier updateReward(address _forAddress) {
+    modifier updateReward(address stakerAddress) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
-        if (_forAddress != address(0)) {
-            users[_forAddress].pendingRewards = earned(_forAddress);
-            users[_forAddress].paidRewardPerToken = rewardPerTokenStored;
+        if (stakerAddress != address(0)) {
+            users[stakerAddress].pendingRewards = earned(stakerAddress);
+            users[stakerAddress].paidRewardPerToken = rewardPerTokenStored;
         }
         _;
     }
@@ -535,11 +535,11 @@ contract MuonNodeStaking is
 
     /**
      * @dev Calculates the total rewards earned by a node.
-     * @param account The staker address of a node.
+     * @param stakerAddress The staker address of a node.
      * @return The total rewards earned by a node.
      */
-    function earned(address account) public view returns (uint256) {
-        User memory user = users[account];
+    function earned(address stakerAddress) public view returns (uint256) {
+        User memory user = users[stakerAddress];
         return
             (user.balance * (rewardPerToken() - user.paidRewardPerToken)) /
             1e18 +
@@ -597,14 +597,20 @@ contract MuonNodeStaking is
 
     // ======== DAO functions ========
 
-    function setExitPendingPeriod(uint256 val) public onlyRole(DAO_ROLE) {
-        exitPendingPeriod = val;
-        emit ExitPendingPeriodUpdated(val);
+    function setExitPendingPeriod(uint256 _exitPendingPeriod)
+        public
+        onlyRole(DAO_ROLE)
+    {
+        exitPendingPeriod = _exitPendingPeriod;
+        emit ExitPendingPeriodUpdated(_exitPendingPeriod);
     }
 
-    function setMinStakeAmount(uint256 val) public onlyRole(DAO_ROLE) {
-        minStakeAmount = val;
-        emit MinStakeAmountUpdated(val);
+    function setMinStakeAmount(uint256 _minStakeAmount)
+        public
+        onlyRole(DAO_ROLE)
+    {
+        minStakeAmount = _minStakeAmount;
+        emit MinStakeAmountUpdated(_minStakeAmount);
     }
 
     function setMuonAppId(uint256 _muonAppId) public onlyRole(DAO_ROLE) {
@@ -647,7 +653,6 @@ contract MuonNodeStaking is
         onlyRole(DAO_ROLE)
     {
         functionPauseStates[functionName].isPaused = true;
-
         emit Paused(functionName);
     }
 
@@ -656,7 +661,6 @@ contract MuonNodeStaking is
         onlyRole(DAO_ROLE)
     {
         functionPauseStates[functionName].isPaused = false;
-
         emit Unpaused(functionName);
     }
 
