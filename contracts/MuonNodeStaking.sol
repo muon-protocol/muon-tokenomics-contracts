@@ -487,7 +487,6 @@ contract MuonNodeStaking is
             peerId,
             true // active
         );
-
         emit MuonNodeAdded(nodeAddress, msg.sender, peerId);
     }
 
@@ -555,30 +554,20 @@ contract MuonNodeStaking is
     }
 
     /**
-     * @dev Locks the specified staker's stake.
+     * @dev Locks or unlocks the specified staker's stake.
      * Only callable by the REWARD_ROLE.
      * @param stakerAddress The address of the staker.
+     * @param lockStatus Boolean indicating whether to lock (true) or unlock (false) the stake.
      */
-    function lockStake(address stakerAddress) public onlyRole(REWARD_ROLE) {
-        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
-            stakerAddress
-        );
+    function setStakeLockStatus(address stakerAddress, bool lockStatus) external onlyRole(REWARD_ROLE) {
+        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(stakerAddress);
         require(node.id != 0, "Node not found.");
 
-        lockedStakes[stakerAddress] = true;
-        emit StakeLocked(stakerAddress);
-    }
+        bool currentLockStatus = lockedStakes[stakerAddress];
+        require(currentLockStatus != lockStatus, lockStatus ? "Already locked." : "Already unlocked.");
 
-    /**
-     * @dev Unlocks the specified staker's stake.
-     * Only callable by the REWARD_ROLE.
-     * @param stakerAddress The address of the staker.
-     */
-    function unlockStake(address stakerAddress) public onlyRole(REWARD_ROLE) {
-        require(lockedStakes[stakerAddress], "Already unlocked.");
-
-        lockedStakes[stakerAddress] = false;
-        emit StakeUnlocked(stakerAddress);
+        lockedStakes[stakerAddress] = lockStatus;
+        emit StakeLockStatusChanged(stakerAddress, lockStatus);
     }
 
     /**
@@ -683,8 +672,7 @@ contract MuonNodeStaking is
     event MinStakeAmountUpdated(uint256 minStakeAmount);
     event MuonAppIdUpdated(uint256 muonAppId);
     event MuonPublicKeyUpdated(PublicKey muonPublicKey);
-    event StakeLocked(address indexed stakerAddress);
-    event StakeUnlocked(address indexed stakerAddress);
+    event StakeLockStatusChanged(address indexed stakerAddress, bool locked);
     event StakingTokenUpdated(address indexed token, uint256 multiplier);
     event TierMaxStakeUpdated(uint8 tier, uint256 maxStakeAmount);
     event Paused(string functionName);

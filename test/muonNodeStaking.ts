@@ -1015,12 +1015,12 @@ describe("MuonNodeStaking", function () {
 
       // try to lock non exist staker
       await expect(
-        nodeStaking.connect(rewardRole).lockStake(user1.address)
+        nodeStaking.connect(rewardRole).setStakeLockStatus(user1.address, true)
       ).to.be.revertedWith("Node not found.");
 
       // try to unlock not locked staker
       await expect(
-        nodeStaking.connect(rewardRole).unlockStake(staker1.address)
+        nodeStaking.connect(rewardRole).setStakeLockStatus(staker1.address, false)
       ).to.be.revertedWith("Already unlocked.");
 
       const earned1 = await nodeStaking.earned(staker1.address);
@@ -1029,7 +1029,7 @@ describe("MuonNodeStaking", function () {
       await nodeStaking.connect(staker1).requestExit();
 
       // lock the stake
-      await nodeStaking.connect(rewardRole).lockStake(staker1.address);
+      await nodeStaking.connect(rewardRole).setStakeLockStatus(staker1.address, true);
 
       // Increase time by 7 days
       await evmIncreaseTime(60 * 60 * 24 * 7);
@@ -1045,7 +1045,7 @@ describe("MuonNodeStaking", function () {
       );
 
       // unlock the stake
-      await nodeStaking.connect(rewardRole).unlockStake(staker1.address);
+      await nodeStaking.connect(rewardRole).setStakeLockStatus(staker1.address, false);
 
       expect(await bondedPion.ownerOf(1)).eq(nodeStaking.address);
 
