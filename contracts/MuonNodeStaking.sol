@@ -659,6 +659,7 @@ contract MuonNodeStaking is
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
+        require(node.id != 0, "Node not found for the staker address.");
 
         nodeManager.setTier(node.id, tier);
         _updateStaking(stakerAddress);
