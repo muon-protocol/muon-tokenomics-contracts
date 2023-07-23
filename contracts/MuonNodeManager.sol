@@ -356,6 +356,8 @@ contract MuonNodeManager is
         updateState
         updateNodeState(nodeId)
     {
+        require(nodes[nodeId].id == nodeId, "Node not found.");
+
         require(nodes[nodeId].tier != tier, "Already set.");
 
         nodes[nodeId].tier = tier;
