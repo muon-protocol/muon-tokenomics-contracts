@@ -68,19 +68,14 @@ contract MuonNodeStaking is
     // tier => maxStakeAmount
     mapping(uint8 => uint256) public tiersMaxStakeAmount;
 
-    struct FunctionPauseState {
-        bool isPaused;
-    }
-    mapping(string => FunctionPauseState) public functionPauseStates;
+    // function name => paused
+    mapping(string => bool) public functionPauseStatus;
 
     /**
      * @dev Modifier to make a function callable only when the contract is not paused.
      */
     modifier whenFunctionNotPaused(string memory functionName) {
-        require(
-            !functionPauseStates[functionName].isPaused,
-            "Function is paused."
-        );
+        require(!functionPauseStatus[functionName], "Function is paused.");
         _;
     }
 
@@ -559,12 +554,20 @@ contract MuonNodeStaking is
      * @param stakerAddress The address of the staker.
      * @param lockStatus Boolean indicating whether to lock (true) or unlock (false) the stake.
      */
-    function setStakeLockStatus(address stakerAddress, bool lockStatus) external onlyRole(REWARD_ROLE) {
-        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(stakerAddress);
+    function setStakeLockStatus(address stakerAddress, bool lockStatus)
+        external
+        onlyRole(REWARD_ROLE)
+    {
+        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
+            stakerAddress
+        );
         require(node.id != 0, "Node not found.");
 
         bool currentLockStatus = lockedStakes[stakerAddress];
-        require(currentLockStatus != lockStatus, lockStatus ? "Already locked." : "Already unlocked.");
+        require(
+            currentLockStatus != lockStatus,
+            lockStatus ? "Already locked." : "Already unlocked."
+        );
 
         lockedStakes[stakerAddress] = lockStatus;
         emit StakeLockStatusChanged(stakerAddress, lockStatus);
@@ -637,20 +640,18 @@ contract MuonNodeStaking is
         _updateStaking(stakerAddress);
     }
 
-    function pauseFunction(string memory functionName)
-        external
-        onlyRole(DAO_ROLE)
-    {
-        functionPauseStates[functionName].isPaused = true;
-        emit Paused(functionName);
-    }
+    function setFunctionPauseStatus(
+        string memory functionName,
+        bool pauseStatus
+    ) external onlyRole(DAO_ROLE) {
+        bool currentStatus = functionPauseStatus[functionName];
+        require(
+            currentStatus != pauseStatus,
+            pauseStatus ? "Already paused." : "Already unpaused."
+        );
 
-    function unpauseFunction(string memory functionName)
-        external
-        onlyRole(DAO_ROLE)
-    {
-        functionPauseStates[functionName].isPaused = false;
-        emit Unpaused(functionName);
+        functionPauseStatus[functionName] = pauseStatus;
+        emit FunctionPauseStatusChanged(functionName, pauseStatus);
     }
 
     // ======== Events ========
@@ -675,6 +676,5 @@ contract MuonNodeStaking is
     event StakeLockStatusChanged(address indexed stakerAddress, bool locked);
     event StakingTokenUpdated(address indexed token, uint256 multiplier);
     event TierMaxStakeUpdated(uint8 tier, uint256 maxStakeAmount);
-    event Paused(string functionName);
-    event Unpaused(string functionName);
+    event FunctionPauseStatusChanged(string functionName, bool isPaused);
 }

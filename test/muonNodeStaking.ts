@@ -1020,7 +1020,9 @@ describe("MuonNodeStaking", function () {
 
       // try to unlock not locked staker
       await expect(
-        nodeStaking.connect(rewardRole).setStakeLockStatus(staker1.address, false)
+        nodeStaking
+          .connect(rewardRole)
+          .setStakeLockStatus(staker1.address, false)
       ).to.be.revertedWith("Already unlocked.");
 
       const earned1 = await nodeStaking.earned(staker1.address);
@@ -1029,7 +1031,9 @@ describe("MuonNodeStaking", function () {
       await nodeStaking.connect(staker1).requestExit();
 
       // lock the stake
-      await nodeStaking.connect(rewardRole).setStakeLockStatus(staker1.address, true);
+      await nodeStaking
+        .connect(rewardRole)
+        .setStakeLockStatus(staker1.address, true);
 
       // Increase time by 7 days
       await evmIncreaseTime(60 * 60 * 24 * 7);
@@ -1045,7 +1049,9 @@ describe("MuonNodeStaking", function () {
       );
 
       // unlock the stake
-      await nodeStaking.connect(rewardRole).setStakeLockStatus(staker1.address, false);
+      await nodeStaking
+        .connect(rewardRole)
+        .setStakeLockStatus(staker1.address, false);
 
       expect(await bondedPion.ownerOf(1)).eq(nodeStaking.address);
 
@@ -1264,15 +1270,25 @@ describe("MuonNodeStaking", function () {
 
     it("DAO should have the ability to pause and unpause specific functions", async function () {
       const functionName = "addMuonNode";
-      expect(await nodeStaking.functionPauseStates(functionName)).to.be.false;
+      expect(await nodeStaking.functionPauseStatus(functionName)).to.be.false;
+      await expect(
+        nodeStaking.connect(daoRole).setFunctionPauseStatus(functionName, false)
+      ).to.be.revertedWith("Already unpaused.");
 
-      const tx = await nodeStaking.connect(daoRole).pauseFunction(functionName);
-      const pausedFunction = await tx
+      const tx = await nodeStaking
+        .connect(daoRole)
+        .setFunctionPauseStatus(functionName, true);
+      await expect(
+        nodeStaking.connect(daoRole).setFunctionPauseStatus(functionName, true)
+      ).to.be.revertedWith("Already paused.");
+
+      const eventArgs = await tx
         .wait()
-        .then((receipt) => receipt.events[0].args.functionName);
-      expect(pausedFunction).eq(functionName);
+        .then((receipt) => receipt.events[0].args);
+      expect(eventArgs.functionName).eq(functionName);
+      expect(eventArgs.isPaused).eq(true);
 
-      expect(await nodeStaking.functionPauseStates(functionName)).to.be.true;
+      expect(await nodeStaking.functionPauseStatus(functionName)).to.be.true;
 
       const tokenId = await mintBondedPion(
         ONE.mul(1000),
@@ -1289,13 +1305,13 @@ describe("MuonNodeStaking", function () {
 
       const tx2 = await nodeStaking
         .connect(daoRole)
-        .unpauseFunction(functionName);
+        .setFunctionPauseStatus(functionName, false);
       const unpausedFunction = await tx2
         .wait()
         .then((receipt) => receipt.events[0].args.functionName);
       expect(unpausedFunction).eq(functionName);
 
-      expect(await nodeStaking.functionPauseStates(functionName)).to.be.false;
+      expect(await nodeStaking.functionPauseStatus(functionName)).to.be.false;
 
       await nodeStaking
         .connect(staker3)
