@@ -126,7 +126,8 @@ contract BondedToken is
     /// @dev only whitelisted tokens can be locked
     /// @param tokens list of tokens to be whitelisted
     function whitelistTokens(address[] memory tokens) external onlyOwner {
-        for (uint256 i; i < tokens.length; ++i) {
+        uint256 tokensLength = tokens.length;
+        for (uint256 i; i < tokensLength; ++i) {
             require(!isTokenWhitelisted[tokens[i]], "Already Whitelisted");
             tokensWhitelist.push(tokens[i]);
             isTokenWhitelisted[tokens[i]] = true;
@@ -194,7 +195,8 @@ contract BondedToken is
             _isApprovedOrOwner(_msgSender(), tokenId),
             "ERC721: caller is not token owner or approved"
         );
-        for (uint256 i; i < tokensWhitelist.length; ++i) {
+        uint256 tokensWhitelistLength = tokensWhitelist.length;
+        for (uint256 i; i < tokensWhitelistLength; ++i) {
             if (lockedOf[tokenId][tokensWhitelist[i]] != 0) {
                 totalLocked[tokensWhitelist[i]] -= lockedOf[tokenId][
                     tokensWhitelist[i]
@@ -276,7 +278,8 @@ contract BondedToken is
         require(tokenIdA != tokenIdB, "Same Token ID");
         require(_ownerOf(tokenIdB) != address(0), "ERC721: invalid token ID");
 
-        for (uint256 i; i < tokensWhitelist.length; ++i) {
+        uint256 tokensWhitelistLength = tokensWhitelist.length;
+        for (uint256 i; i < tokensWhitelistLength; ++i) {
             if (lockedOf[tokenIdA][tokensWhitelist[i]] != 0) {
                 lockedOf[tokenIdB][tokensWhitelist[i]] += lockedOf[tokenIdA][
                     tokensWhitelist[i]
@@ -334,8 +337,9 @@ contract BondedToken is
         uint256 tokenId,
         address[] memory tokens
     ) external view returns (uint256[] memory amounts) {
-        amounts = new uint256[](tokens.length);
-        for (uint256 i; i < tokens.length; ++i) {
+        uint256 tokensLength = tokens.length;
+        amounts = new uint256[](tokensLength);
+        for (uint256 i; i < tokensLength; ++i) {
             amounts[i] = lockedOf[tokenId][tokens[i]];
         }
     }
