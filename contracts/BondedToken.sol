@@ -114,11 +114,11 @@ contract BondedToken is
         _grantRole(TRANSFERABLE_ADDRESS_ROLE, address(0));
     }
 
-    function pause() public onlyOwner {
+    function pause() external onlyOwner {
         _pause();
     }
 
-    function unpause() public onlyOwner {
+    function unpause() external onlyOwner {
         _unpause();
     }
 
@@ -192,7 +192,7 @@ contract BondedToken is
 
     /// @notice burns the NFT
     /// @param tokenId tokenId
-    function burn(uint256 tokenId) public virtual override whenNotPaused {
+    function burn(uint256 tokenId) external virtual override whenNotPaused {
         require(
             _isApprovedOrOwner(_msgSender(), tokenId),
             "ERC721: caller is not token owner or approved"
