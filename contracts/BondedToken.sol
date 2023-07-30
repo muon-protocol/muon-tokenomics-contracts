@@ -56,24 +56,24 @@ contract BondedToken is
     // ------------------------------------------------------------------------
 
     function _initialize(
-        address _Token,
-        address _treasury,
-        string memory _name,
-        string memory _symbol
+        address token,
+        address treasury,
+        string memory name,
+        string memory symbol
     ) internal initializer {
-        __ERC721_init(_name, _symbol);
+        __ERC721_init(name, symbol);
         __Pausable_init();
         __ERC721Burnable_init();
         __AccessControl_init();
         __Ownable_init();
 
         require(
-            _Token != address(0) && _treasury != address(0),
+            token != address(0) && treasury != address(0),
             "Zero Address"
         );
 
-        baseToken = _Token;
-        treasury = _treasury;
+        baseToken = token;
+        treasury = treasury;
 
         // whitelist baseToken
         tokensWhitelist.push(baseToken);
