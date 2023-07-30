@@ -73,7 +73,7 @@ contract BondedToken is
     event WhitelistTokensUpdated(address[] tokens);
 
     event PublicTransferStatusUpdated(bool publicTransferStatus);
-    
+
     event TreasuryUpdated(address treasury);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -97,10 +97,7 @@ contract BondedToken is
         __AccessControl_init();
         __Ownable_init();
 
-        require(
-            token != address(0) && treasury != address(0),
-            "Zero Address"
-        );
+        require(token != address(0) && treasury != address(0), "Zero Address");
 
         baseToken = token;
         treasury = treasury;
@@ -166,10 +163,10 @@ contract BondedToken is
         uint256 tokenId,
         uint256 batchSize
     ) internal override whenNotPaused {
-        if(!isPublicTransferEnabled){
+        if (!isPublicTransferEnabled) {
             require(
                 hasRole(TRANSFERABLE_ADDRESS_ROLE, from) ||
-                hasRole(TRANSFERABLE_ADDRESS_ROLE, to),
+                    hasRole(TRANSFERABLE_ADDRESS_ROLE, to),
                 "Transfer is Limited"
             );
         }
@@ -194,10 +191,15 @@ contract BondedToken is
     /// @notice burns the NFT
     /// @param tokenId tokenId
     function burn(uint256 tokenId) public virtual override whenNotPaused {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
+        require(
+            _isApprovedOrOwner(_msgSender(), tokenId),
+            "ERC721: caller is not token owner or approved"
+        );
         for (uint256 i; i < tokensWhitelist.length; ++i) {
             if (lockedOf[tokenId][tokensWhitelist[i]] != 0) {
-                totalLocked[tokensWhitelist[i]] -= lockedOf[tokenId][tokensWhitelist[i]];
+                totalLocked[tokensWhitelist[i]] -= lockedOf[tokenId][
+                    tokensWhitelist[i]
+                ];
                 lockedOf[tokenId][tokensWhitelist[i]] = 0;
             }
         }
@@ -350,5 +352,4 @@ contract BondedToken is
     {
         return super.supportsInterface(interfaceId);
     }
-
 }
