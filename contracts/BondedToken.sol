@@ -190,7 +190,7 @@ contract BondedToken is
 
     /// @notice burns the NFT
     /// @param tokenId tokenId
-    function burn(uint256 tokenId) external virtual override whenNotPaused {
+    function burn(uint256 tokenId) public virtual override whenNotPaused {
         require(
             _isApprovedOrOwner(_msgSender(), tokenId),
             "ERC721: caller is not token owner or approved"
@@ -347,7 +347,7 @@ contract BondedToken is
     function supportsInterface(
         bytes4 interfaceId
     )
-        external
+        public
         view
         virtual
         override(ERC721Upgradeable, AccessControlUpgradeable)
