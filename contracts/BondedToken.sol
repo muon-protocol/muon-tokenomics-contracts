@@ -46,6 +46,36 @@ contract BondedToken is
     // token address => total locked amount
     mapping(address => uint256) public totalLocked;
 
+    // ------------------------------------------------------------------------
+    // Events
+    // ------------------------------------------------------------------------
+    event Locked(
+        address indexed from,
+        uint256 indexed tokenId,
+        address[] tokens,
+        uint256[] amounts
+    );
+
+    event Merged(
+        address indexed from,
+        uint256 indexed tokenIdA,
+        uint256 indexed tokenIdB
+    );
+
+    event Splited(
+        address indexed from,
+        uint256 indexed tokenId,
+        uint256 indexed newTokenId,
+        address[] tokens,
+        uint256[] amounts
+    );
+
+    event WhitelistTokensUpdated(address[] tokens);
+
+    event PublicTransferStatusUpdated(bool publicTransferStatus);
+    
+    event TreasuryUpdated(address treasury);
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -321,28 +351,4 @@ contract BondedToken is
         return super.supportsInterface(interfaceId);
     }
 
-    // ------------------------------------------------------------------------
-    // Events
-    // ------------------------------------------------------------------------
-    event Locked(
-        address indexed from,
-        uint256 indexed tokenId,
-        address[] tokens,
-        uint256[] amounts
-    );
-    event Merged(
-        address indexed from,
-        uint256 indexed tokenIdA,
-        uint256 indexed tokenIdB
-    );
-    event Splited(
-        address indexed from,
-        uint256 indexed tokenId,
-        uint256 indexed newTokenId,
-        address[] tokens,
-        uint256[] amounts
-    );
-    event WhitelistTokensUpdated(address[] tokens);
-    event PublicTransferStatusUpdated(bool publicTransferStatus);
-    event TreasuryUpdated(address treasury);
 }
