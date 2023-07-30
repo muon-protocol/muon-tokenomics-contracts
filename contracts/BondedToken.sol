@@ -127,10 +127,7 @@ contract BondedToken is
     /// @param tokens list of tokens to be whitelisted
     function whitelistTokens(address[] memory tokens) external onlyOwner {
         for (uint256 i; i < tokens.length; ++i) {
-            require(
-                isTokenWhitelisted[tokens[i]] == false,
-                "Already Whitelisted"
-            );
+            require(!isTokenWhitelisted[tokens[i]], "Already Whitelisted");
             tokensWhitelist.push(tokens[i]);
             isTokenWhitelisted[tokens[i]] = true;
         }
