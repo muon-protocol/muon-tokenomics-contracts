@@ -22,13 +22,19 @@ contract BondedToken is
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    uint256 public _tokenIdCounter;
+    bytes32 public constant TRANSFERABLE_ADDRESS_ROLE =
+        keccak256("TRANSFERABLE_ADDRESS_ROLE");
 
-    address public Token;
+    uint256 public tokenIdCounter;
+
+    address public baseToken;
 
     address public treasury;
 
+    bool public isPublicTransferEnabled;
+
     address[] public tokensWhitelist;
+
     mapping(address => bool) public isTokenWhitelisted;
 
     // NFT id => token address => locked amount
@@ -44,11 +50,6 @@ contract BondedToken is
     constructor() {
         _disableInitializers();
     }
-
-    bool public isPublicTransferEnabled;
-
-    bytes32 public constant TRANSFERABLE_ADDRESS_ROLE =
-        keccak256("TRANSFERABLE_ADDRESS_ROLE");
 
     // ------------------------------------------------------------------------
     // Restricted Functions
@@ -71,12 +72,12 @@ contract BondedToken is
             "Zero Address"
         );
 
-        Token = _Token;
+        baseToken = _Token;
         treasury = _treasury;
 
-        // whitelist Token
-        tokensWhitelist.push(Token);
-        isTokenWhitelisted[Token] = true;
+        // whitelist baseToken
+        tokensWhitelist.push(baseToken);
+        isTokenWhitelisted[baseToken] = true;
 
         isPublicTransferEnabled = false;
 
@@ -153,8 +154,8 @@ contract BondedToken is
     /// @param to receiver of the NFT
     /// @return Minted tokenId
     function mint(address to) public whenNotPaused returns (uint256) {
-        _tokenIdCounter += 1;
-        uint256 tokenId = _tokenIdCounter;
+        tokenIdCounter += 1;
+        uint256 tokenId = tokenIdCounter;
         _safeMint(to, tokenId);
         mintedAt[tokenId] = block.timestamp;
         return tokenId;
@@ -193,8 +194,8 @@ contract BondedToken is
             require(isTokenWhitelisted[tokens[i]], "Not Whitelisted");
             require(amounts[i] > 0, "Cannot Lock Zero Amount");
 
-            if (tokens[i] == Token) {
-                IToken(Token).burnFrom(msg.sender, amounts[i]);
+            if (tokens[i] == baseToken) {
+                IToken(baseToken).burnFrom(msg.sender, amounts[i]);
                 receivedAmount = amounts[i];
             } else {
                 receivedAmount = IERC20Upgradeable(tokens[i]).balanceOf(
