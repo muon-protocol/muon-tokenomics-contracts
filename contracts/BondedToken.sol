@@ -111,8 +111,6 @@ contract BondedToken is
         tokensWhitelist.push(baseToken);
         isTokenWhitelisted[baseToken] = true;
 
-        isPublicTransferEnabled = false;
-
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(TRANSFERABLE_ADDRESS_ROLE, address(0));
     }
