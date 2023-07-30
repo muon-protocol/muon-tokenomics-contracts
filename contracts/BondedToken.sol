@@ -346,7 +346,7 @@ contract BondedToken is
     function supportsInterface(
         bytes4 interfaceId
     )
-        public
+        external
         view
         virtual
         override(ERC721Upgradeable, AccessControlUpgradeable)
