@@ -84,7 +84,7 @@ contract BondedToken is
     }
 
     // ------------------------------------------------------------------------
-    // Restricted Functions
+    // initializer
     // ------------------------------------------------------------------------
 
     function _initialize(
@@ -116,6 +116,10 @@ contract BondedToken is
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(TRANSFERABLE_ADDRESS_ROLE, address(0));
     }
+
+    // ------------------------------------------------------------------------
+    // External Functions
+    // ------------------------------------------------------------------------
 
     function pause() external onlyOwner {
         _pause();
@@ -155,29 +159,93 @@ contract BondedToken is
         emit TreasuryUpdated(_treasury);
     }
 
-    // ------------------------------------------------------------------------
-    // Internal Functions
-    // ------------------------------------------------------------------------
+    /// @notice mints a new NFT for requested address and locks tokens for that NFT
+    /// @param tokens list of tokens to deposit for tokenId
+    /// @param amounts list of amounts of each token to deposit
+    /// @param to receiver of the NFT
+    /// @return tokenId minted
+    function mintAndLock(
+        address[] memory tokens,
+        uint256[] memory amounts,
+        address to
+    ) external whenNotPaused returns (uint256 tokenId) {
+        tokenId = mint(to);
+        lock(tokenId, tokens, amounts);
+    }
 
-    /// @notice transfer is limited to whitelisted contracts
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId,
-        uint256 batchSize
-    ) internal override whenNotPaused {
-        if (!isPublicTransferEnabled) {
-            require(
-                hasRole(TRANSFERABLE_ADDRESS_ROLE, from) ||
-                    hasRole(TRANSFERABLE_ADDRESS_ROLE, to),
-                "Transfer is Limited"
-            );
+    /// @notice merges two tokenId. Burns tokenIdA and add it's underlying assets to tokenIdB
+    /// @dev msg.sender should be owner of tokenIdA (which will be burned)
+    /// @param tokenIdA first tokenId to merge. Will be burned
+    /// @param tokenIdB second tokenId to merge. It's underlying assets will increase
+    function merge(uint256 tokenIdA, uint256 tokenIdB) external whenNotPaused {
+        require(ownerOf(tokenIdA) == msg.sender, "Not Owned");
+        require(tokenIdA != tokenIdB, "Same Token ID");
+        require(_ownerOf(tokenIdB) != address(0), "ERC721: invalid token ID");
+
+        uint256 tokensWhitelistLength = tokensWhitelist.length;
+        for (uint256 i; i < tokensWhitelistLength; ++i) {
+            if (lockedOf[tokenIdA][tokensWhitelist[i]] != 0) {
+                lockedOf[tokenIdB][tokensWhitelist[i]] += lockedOf[tokenIdA][
+                    tokensWhitelist[i]
+                ];
+                lockedOf[tokenIdA][tokensWhitelist[i]] = 0;
+            }
         }
-        super._beforeTokenTransfer(from, to, tokenId, batchSize);
+
+        // set mintedAt of the tokenIdB to the oldest mint timestamp of tokenIdA and tokenIdB
+        if (mintedAt[tokenIdA] < mintedAt[tokenIdB]) {
+            mintedAt[tokenIdB] = mintedAt[tokenIdA];
+        }
+
+        _burn(tokenIdA);
+        emit Merged(msg.sender, tokenIdA, tokenIdB);
+    }
+
+    /// @notice splits NFT into two NFTs
+    /// @dev msg.sender should be owner of both tokenId
+    /// @param tokenId id of the NFT to split
+    /// @param tokens list of tokens to move to new NFT
+    /// @param amounts list of amounts to move to new NFT
+    function split(
+        uint256 tokenId,
+        address[] memory tokens,
+        uint256[] memory amounts
+    ) external whenNotPaused returns (uint256 newTokenId) {
+        require(ownerOf(tokenId) == msg.sender, "Not Owned");
+
+        uint256 len = tokens.length;
+        require(len == amounts.length, "Length Mismatch");
+
+        newTokenId = mint(msg.sender);
+
+        // set new token mint timestamp to the origin token mint timestamp
+        mintedAt[newTokenId] = mintedAt[tokenId];
+
+        for (uint256 i; i < len; ++i) {
+            require(
+                lockedOf[tokenId][tokens[i]] >= amounts[i],
+                "Insufficient Locked Amount"
+            );
+            lockedOf[tokenId][tokens[i]] -= amounts[i];
+            lockedOf[newTokenId][tokens[i]] += amounts[i];
+        }
+        emit Splited(msg.sender, tokenId, newTokenId, tokens, amounts);
+    }
+
+    /// @notice returns locked amount of requested tokens for given tokenId
+    function getLockedOf(
+        uint256 tokenId,
+        address[] memory tokens
+    ) external view returns (uint256[] memory amounts) {
+        uint256 tokensLength = tokens.length;
+        amounts = new uint256[](tokensLength);
+        for (uint256 i; i < tokensLength; ++i) {
+            amounts[i] = lockedOf[tokenId][tokens[i]];
+        }
     }
 
     // ------------------------------------------------------------------------
-    // Public/External Functions
+    // Public Functions
     // ------------------------------------------------------------------------
 
     /// @notice mints a new NFT for requested address
@@ -258,95 +326,6 @@ contract BondedToken is
         emit Locked(msg.sender, tokenId, tokens, amounts);
     }
 
-    /// @notice mints a new NFT for requested address and locks tokens for that NFT
-    /// @param tokens list of tokens to deposit for tokenId
-    /// @param amounts list of amounts of each token to deposit
-    /// @param to receiver of the NFT
-    /// @return tokenId minted
-    function mintAndLock(
-        address[] memory tokens,
-        uint256[] memory amounts,
-        address to
-    ) external whenNotPaused returns (uint256 tokenId) {
-        tokenId = mint(to);
-        lock(tokenId, tokens, amounts);
-    }
-
-    /// @notice merges two tokenId. Burns tokenIdA and add it's underlying assets to tokenIdB
-    /// @dev msg.sender should be owner of tokenIdA (which will be burned)
-    /// @param tokenIdA first tokenId to merge. Will be burned
-    /// @param tokenIdB second tokenId to merge. It's underlying assets will increase
-    function merge(uint256 tokenIdA, uint256 tokenIdB) external whenNotPaused {
-        require(ownerOf(tokenIdA) == msg.sender, "Not Owned");
-        require(tokenIdA != tokenIdB, "Same Token ID");
-        require(_ownerOf(tokenIdB) != address(0), "ERC721: invalid token ID");
-
-        uint256 tokensWhitelistLength = tokensWhitelist.length;
-        for (uint256 i; i < tokensWhitelistLength; ++i) {
-            if (lockedOf[tokenIdA][tokensWhitelist[i]] != 0) {
-                lockedOf[tokenIdB][tokensWhitelist[i]] += lockedOf[tokenIdA][
-                    tokensWhitelist[i]
-                ];
-                lockedOf[tokenIdA][tokensWhitelist[i]] = 0;
-            }
-        }
-
-        // set mintedAt of the tokenIdB to the oldest mint timestamp of tokenIdA and tokenIdB
-        if (mintedAt[tokenIdA] < mintedAt[tokenIdB]) {
-            mintedAt[tokenIdB] = mintedAt[tokenIdA];
-        }
-
-        _burn(tokenIdA);
-        emit Merged(msg.sender, tokenIdA, tokenIdB);
-    }
-
-    /// @notice splits NFT into two NFTs
-    /// @dev msg.sender should be owner of both tokenId
-    /// @param tokenId id of the NFT to split
-    /// @param tokens list of tokens to move to new NFT
-    /// @param amounts list of amounts to move to new NFT
-    function split(
-        uint256 tokenId,
-        address[] memory tokens,
-        uint256[] memory amounts
-    ) external whenNotPaused returns (uint256 newTokenId) {
-        require(ownerOf(tokenId) == msg.sender, "Not Owned");
-
-        uint256 len = tokens.length;
-        require(len == amounts.length, "Length Mismatch");
-
-        newTokenId = mint(msg.sender);
-
-        // set new token mint timestamp to the origin token mint timestamp
-        mintedAt[newTokenId] = mintedAt[tokenId];
-
-        for (uint256 i; i < len; ++i) {
-            require(
-                lockedOf[tokenId][tokens[i]] >= amounts[i],
-                "Insufficient Locked Amount"
-            );
-            lockedOf[tokenId][tokens[i]] -= amounts[i];
-            lockedOf[newTokenId][tokens[i]] += amounts[i];
-        }
-        emit Splited(msg.sender, tokenId, newTokenId, tokens, amounts);
-    }
-
-    // ------------------------------------------------------------------------
-    // View Functions
-    // ------------------------------------------------------------------------
-
-    /// @notice returns locked amount of requested tokens for given tokenId
-    function getLockedOf(
-        uint256 tokenId,
-        address[] memory tokens
-    ) external view returns (uint256[] memory amounts) {
-        uint256 tokensLength = tokens.length;
-        amounts = new uint256[](tokensLength);
-        for (uint256 i; i < tokensLength; ++i) {
-            amounts[i] = lockedOf[tokenId][tokens[i]];
-        }
-    }
-
     function supportsInterface(
         bytes4 interfaceId
     )
@@ -357,5 +336,26 @@ contract BondedToken is
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    // ------------------------------------------------------------------------
+    // Internal Functions
+    // ------------------------------------------------------------------------
+
+    /// @notice transfer is limited to whitelisted contracts
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        uint256 batchSize
+    ) internal override whenNotPaused {
+        if (!isPublicTransferEnabled) {
+            require(
+                hasRole(TRANSFERABLE_ADDRESS_ROLE, from) ||
+                    hasRole(TRANSFERABLE_ADDRESS_ROLE, to),
+                "Transfer is Limited"
+            );
+        }
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
 }
