@@ -38,15 +38,15 @@ contract Token is
         _grantRole(MINTER_ROLE, msg.sender);
     }
 
-    function pause() public onlyRole(PAUSER_ROLE) {
+    function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
-    function unpause() public onlyRole(PAUSER_ROLE) {
+    function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
-    function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
