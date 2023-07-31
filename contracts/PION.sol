@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "./Token.sol";
 
 contract PION is Token {
-    function initialize() public initializer {
+    function initialize() external initializer {
         Token._initialize("PioneerNetwork", "PION");
     }
 }
