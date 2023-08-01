@@ -35,8 +35,6 @@ contract BondedToken is
 
     address[] public tokensWhitelist;
 
-    uint256[50] private __gap;
-
     mapping(address => bool) public isTokenWhitelisted;
 
     // NFT id => token address => locked amount
