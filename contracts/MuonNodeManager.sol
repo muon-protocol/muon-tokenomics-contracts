@@ -73,6 +73,13 @@ contract MuonNodeManager is
         _;
     }
 
+    /**
+     * @dev Initializes the contract.
+     */
+    function initialize() external initializer {
+        __MuonNodeManagerUpgradeable_init();
+    }
+
     function __MuonNodeManagerUpgradeable_init() internal initializer {
         __AccessControl_init();
 
@@ -83,13 +90,6 @@ contract MuonNodeManager is
         lastNodeId = 0;
         lastUpdateTime = block.timestamp;
         lastRoleId = 0;
-    }
-
-    /**
-     * @dev Initializes the contract.
-     */
-    function initialize() external initializer {
-        __MuonNodeManagerUpgradeable_init();
     }
 
     function __MuonNodeManagerUpgradeable_init_unchained()
