@@ -45,6 +45,15 @@ contract MuonNodeManager is
     // role id => node id => index + 1
     mapping(uint64 => mapping(uint64 => uint16)) public nodesRoles;
 
+    // ======== Events ========
+    event NodeAdded(uint64 indexed nodeId, Node node);
+    event NodeDeactivated(uint64 indexed nodeId);
+    event ConfigSet(string indexed key, string value);
+    event NodeRoleAdded(bytes32 indexed role, uint64 roleId);
+    event NodeRoleSet(uint64 indexed nodeId, uint64 indexed roleId);
+    event NodeRoleUnset(uint64 indexed nodeId, uint64 indexed roleId);
+    event TierSet(uint64 indexed nodeId, uint8 indexed tier);
+
     /**
      * @dev Modifier to update the lastUpdateTime state variable.
      */
@@ -385,13 +394,4 @@ contract MuonNodeManager is
         }
         return (lastUpdateTime, lastNodeId, lastRoleId, configValues);
     }
-
-    // ======== Events ========
-    event NodeAdded(uint64 indexed nodeId, Node node);
-    event NodeDeactivated(uint64 indexed nodeId);
-    event ConfigSet(string indexed key, string value);
-    event NodeRoleAdded(bytes32 indexed role, uint64 roleId);
-    event NodeRoleSet(uint64 indexed nodeId, uint64 indexed roleId);
-    event NodeRoleUnset(uint64 indexed nodeId, uint64 indexed roleId);
-    event TierSet(uint64 indexed nodeId, uint8 indexed tier);
 }
