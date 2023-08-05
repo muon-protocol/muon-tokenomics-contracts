@@ -134,13 +134,9 @@ contract MuonNodeManager is
      * Only callable by the ADMIN_ROLE.
      * @param nodeId The ID of the node to be deactivated.
      */
-    function deactiveNode(uint64 nodeId)
-        public
-        override
-        onlyRole(ADMIN_ROLE)
-        updateState
-        updateNodeState(nodeId)
-    {
+    function deactiveNode(
+        uint64 nodeId
+    ) public override onlyRole(ADMIN_ROLE) updateState updateNodeState(nodeId) {
         require(nodes[nodeId].id == nodeId, "Node not found.");
 
         require(nodes[nodeId].active, "Already deactivated.");
@@ -157,12 +153,10 @@ contract MuonNodeManager is
      * @param nodeId The ID of the node.
      * @param roleId The ID of the role.
      */
-    function setNodeRole(uint64 nodeId, uint64 roleId)
-        public
-        onlyRole(DAO_ROLE)
-        updateState
-        updateNodeState(nodeId)
-    {
+    function setNodeRole(
+        uint64 nodeId,
+        uint64 roleId
+    ) public onlyRole(DAO_ROLE) updateState updateNodeState(nodeId) {
         require(roleId > 0 && roleId <= lastRoleId, "Invalid role ID.");
 
         require(nodesRoles[roleId][nodeId] == 0, "Already set.");
@@ -178,12 +172,10 @@ contract MuonNodeManager is
      * @param nodeId The ID of the node.
      * @param roleId The ID of the role.
      */
-    function unsetNodeRole(uint64 nodeId, uint64 roleId)
-        public
-        onlyRole(DAO_ROLE)
-        updateState
-        updateNodeState(nodeId)
-    {
+    function unsetNodeRole(
+        uint64 nodeId,
+        uint64 roleId
+    ) public onlyRole(DAO_ROLE) updateState updateNodeState(nodeId) {
         require(roleId > 0 && roleId <= lastRoleId, "Invalid role ID.");
 
         require(nodesRoles[roleId][nodeId] > 0, "Already unset.");
@@ -203,11 +195,10 @@ contract MuonNodeManager is
      * @param role The role to check.
      * @return A boolean indicating whether the node has the role.
      */
-    function nodeHasRole(uint64 nodeId, bytes32 role)
-        public
-        view
-        returns (bool)
-    {
+    function nodeHasRole(
+        uint64 nodeId,
+        bytes32 role
+    ) public view returns (bool) {
         return nodesRoles[roleIds[role]][nodeId] > 0;
     }
 
@@ -313,11 +304,9 @@ contract MuonNodeManager is
      * @param nodeAddress The node address.
      * @return node The node information.
      */
-    function nodeAddressInfo(address nodeAddress)
-        public
-        view
-        returns (Node memory node)
-    {
+    function nodeAddressInfo(
+        address nodeAddress
+    ) public view returns (Node memory node) {
         node = nodes[nodeAddressIds[nodeAddress]];
     }
 
@@ -326,12 +315,9 @@ contract MuonNodeManager is
      * @param stakerAddress The staker address.
      * @return node The node information.
      */
-    function stakerAddressInfo(address stakerAddress)
-        public
-        view
-        override
-        returns (Node memory node)
-    {
+    function stakerAddressInfo(
+        address stakerAddress
+    ) public view override returns (Node memory node) {
         node = nodes[stakerAddressIds[stakerAddress]];
     }
 
@@ -341,12 +327,10 @@ contract MuonNodeManager is
      * @param nodeId The ID of the node.
      * @param tier The tier to set.
      */
-    function setTier(uint64 nodeId, uint8 tier)
-        public
-        onlyRole(ADMIN_ROLE)
-        updateState
-        updateNodeState(nodeId)
-    {
+    function setTier(
+        uint64 nodeId,
+        uint8 tier
+    ) public onlyRole(ADMIN_ROLE) updateState updateNodeState(nodeId) {
         require(nodes[nodeId].id == nodeId, "Node not found.");
 
         require(nodes[nodeId].tier != tier, "Already set.");
@@ -361,10 +345,10 @@ contract MuonNodeManager is
      * @param key The key of the configuration value.
      * @param val The value to be set.
      */
-    function setConfig(string memory key, string memory val)
-        public
-        onlyRole(DAO_ROLE)
-    {
+    function setConfig(
+        string memory key,
+        string memory val
+    ) public onlyRole(DAO_ROLE) {
         configs[key] = val;
         emit ConfigSet(key, val);
     }
@@ -390,16 +374,9 @@ contract MuonNodeManager is
      * @return lastRoleId The value of lastRoleId state variable.
      * @return configValues An array of configuration values corresponding to the keys.
      */
-    function getInfo(string[] memory configKeys)
-        public
-        view
-        returns (
-            uint256,
-            uint64,
-            uint64,
-            string[] memory
-        )
-    {
+    function getInfo(
+        string[] memory configKeys
+    ) public view returns (uint256, uint64, uint64, string[] memory) {
         string[] memory configValues = new string[](configKeys.length);
 
         for (uint256 i = 0; i < configKeys.length; i++) {
