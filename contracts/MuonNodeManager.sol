@@ -54,6 +54,7 @@ contract MuonNodeManager is
     event NodeRoleUnset(uint64 indexed nodeId, uint64 indexed roleId);
     event TierSet(uint64 indexed nodeId, uint8 indexed tier);
 
+    // ======== Modifiers ========
     /**
      * @dev Modifier to update the lastUpdateTime state variable.
      */
