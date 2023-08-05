@@ -10,6 +10,11 @@ contract MuonNodeManager is
     AccessControlUpgradeable,
     IMuonNodeManager
 {
+    struct EditLog {
+        uint64 nodeId;
+        uint256 editTime;
+    }
+
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
 
@@ -27,10 +32,6 @@ contract MuonNodeManager is
     // muon nodes check lastUpdateTime to sync their memory
     uint256 public lastUpdateTime;
 
-    struct EditLog {
-        uint64 nodeId;
-        uint256 editTime;
-    }
     EditLog[] public editLogs;
 
     // commit id => git commit id
