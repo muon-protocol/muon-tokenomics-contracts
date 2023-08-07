@@ -119,18 +119,14 @@ contract MuonNodeManager is
         );
 
         lastNodeId++;
-        nodes[lastNodeId] = Node({
-            id: lastNodeId,
-            nodeAddress: nodeAddress,
-            stakerAddress: stakerAddress,
-            peerId: peerId,
-            tier: 0,
-            active: active,
-            roles: new uint64[](0),
-            startTime: block.timestamp,
-            lastEditTime: block.timestamp,
-            endTime: 0
-        });
+        Node storage node = nodes[lastNodeId];
+        node.id = lastNodeId;
+        node.nodeAddress = nodeAddress;
+        node.stakerAddress = stakerAddress;
+        node.peerId = peerId;
+        node.active = active;
+        node.startTime = block.timestamp;
+        node.lastEditTime = block.timestamp;
 
         nodeAddressIds[nodeAddress] = lastNodeId;
         stakerAddressIds[stakerAddress] = lastNodeId;
