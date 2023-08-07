@@ -110,7 +110,7 @@ contract MuonNodeManager is
         address stakerAddress,
         string calldata peerId,
         bool active
-    ) public override onlyRole(ADMIN_ROLE) updateState {
+    ) external override onlyRole(ADMIN_ROLE) updateState {
         require(nodeAddressIds[nodeAddress] == 0, "Duplicate node address.");
 
         require(
@@ -147,7 +147,13 @@ contract MuonNodeManager is
      */
     function deactiveNode(
         uint64 nodeId
-    ) public override onlyRole(ADMIN_ROLE) updateState updateNodeState(nodeId) {
+    )
+        external
+        override
+        onlyRole(ADMIN_ROLE)
+        updateState
+        updateNodeState(nodeId)
+    {
         require(nodes[nodeId].id == nodeId, "Node not found.");
 
         require(nodes[nodeId].active, "Already deactivated.");
@@ -167,7 +173,7 @@ contract MuonNodeManager is
     function setNodeRole(
         uint64 nodeId,
         uint64 roleId
-    ) public onlyRole(DAO_ROLE) updateState updateNodeState(nodeId) {
+    ) external onlyRole(DAO_ROLE) updateState updateNodeState(nodeId) {
         require(roleId > 0 && roleId <= lastRoleId, "Invalid role ID.");
 
         require(nodesRoles[roleId][nodeId] == 0, "Already set.");
@@ -186,7 +192,7 @@ contract MuonNodeManager is
     function unsetNodeRole(
         uint64 nodeId,
         uint64 roleId
-    ) public onlyRole(DAO_ROLE) updateState updateNodeState(nodeId) {
+    ) external onlyRole(DAO_ROLE) updateState updateNodeState(nodeId) {
         require(roleId > 0 && roleId <= lastRoleId, "Invalid role ID.");
 
         require(nodesRoles[roleId][nodeId] > 0, "Already unset.");
@@ -209,7 +215,7 @@ contract MuonNodeManager is
     function nodeHasRole(
         uint64 nodeId,
         bytes32 role
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         return nodesRoles[roleIds[role]][nodeId] > 0;
     }
 
@@ -227,7 +233,7 @@ contract MuonNodeManager is
      * @param nodeId The ID of the node.
      * @return The node information.
      */
-    function getNode(uint64 nodeId) public view returns (Node memory) {
+    function getNode(uint64 nodeId) external view returns (Node memory) {
         Node memory node = nodes[nodeId];
         node.roles = getNodeRoles(nodeId);
         return node;
@@ -244,7 +250,7 @@ contract MuonNodeManager is
         uint256 lastEditTime,
         uint64 startId,
         uint64 endId
-    ) public view returns (Node[] memory nodesList) {
+    ) external view returns (Node[] memory nodesList) {
         startId = startId > 0 ? startId : 1;
         endId = endId <= lastNodeId ? endId : lastNodeId;
         require(startId <= endId, "Invalid range.");
@@ -278,7 +284,7 @@ contract MuonNodeManager is
         uint256 lastEditTime,
         uint256 index,
         uint16 maxNodesToRetrieve
-    ) public view returns (Node[] memory nodesList, uint256 lastIndex) {
+    ) external view returns (Node[] memory nodesList, uint256 lastIndex) {
         uint256 startIndex = index == 0 ? editLogs.length - 1 : index - 1;
         nodesList = new Node[](maxNodesToRetrieve);
         uint8 nodesIndex = 0;
@@ -317,7 +323,7 @@ contract MuonNodeManager is
      */
     function nodeAddressInfo(
         address nodeAddress
-    ) public view returns (Node memory node) {
+    ) external view returns (Node memory node) {
         node = nodes[nodeAddressIds[nodeAddress]];
     }
 
@@ -328,7 +334,7 @@ contract MuonNodeManager is
      */
     function stakerAddressInfo(
         address stakerAddress
-    ) public view override returns (Node memory node) {
+    ) external view override returns (Node memory node) {
         node = nodes[stakerAddressIds[stakerAddress]];
     }
 
@@ -341,7 +347,7 @@ contract MuonNodeManager is
     function setTier(
         uint64 nodeId,
         uint8 tier
-    ) public onlyRole(ADMIN_ROLE) updateState updateNodeState(nodeId) {
+    ) external onlyRole(ADMIN_ROLE) updateState updateNodeState(nodeId) {
         require(nodes[nodeId].id == nodeId, "Node not found.");
 
         require(nodes[nodeId].tier != tier, "Already set.");
@@ -359,7 +365,7 @@ contract MuonNodeManager is
     function setConfig(
         string memory key,
         string memory val
-    ) public onlyRole(DAO_ROLE) {
+    ) external onlyRole(DAO_ROLE) {
         configs[key] = val;
         emit ConfigSet(key, val);
     }
@@ -369,7 +375,7 @@ contract MuonNodeManager is
      * Only callable by the DAO_ROLE.
      * @param role The role to be added.
      */
-    function addNodeRole(bytes32 role) public onlyRole(DAO_ROLE) {
+    function addNodeRole(bytes32 role) external onlyRole(DAO_ROLE) {
         require(roleIds[role] == 0, "Already added.");
 
         lastRoleId++;
@@ -387,7 +393,7 @@ contract MuonNodeManager is
      */
     function getInfo(
         string[] memory configKeys
-    ) public view returns (uint256, uint64, uint64, string[] memory) {
+    ) external view returns (uint256, uint64, uint64, string[] memory) {
         string[] memory configValues = new string[](configKeys.length);
 
         for (uint256 i = 0; i < configKeys.length; i++) {
