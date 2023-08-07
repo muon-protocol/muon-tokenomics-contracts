@@ -207,6 +207,51 @@ contract MuonNodeManager is
     }
 
     /**
+     * @dev Sets the tier of a node.
+     * Only callable by the DAO_ROLE.
+     * @param nodeId The ID of the node.
+     * @param tier The tier to set.
+     */
+    function setTier(
+        uint64 nodeId,
+        uint8 tier
+    ) external onlyRole(ADMIN_ROLE) updateState updateNodeState(nodeId) {
+        require(nodes[nodeId].id == nodeId, "Node not found.");
+
+        require(nodes[nodeId].tier != tier, "Already set.");
+
+        nodes[nodeId].tier = tier;
+        emit TierSet(nodeId, tier);
+    }
+
+    /**
+     * @dev Sets a configuration value.
+     * Only callable by the DAO_ROLE.
+     * @param key The key of the configuration value.
+     * @param val The value to be set.
+     */
+    function setConfig(
+        string memory key,
+        string memory val
+    ) external onlyRole(DAO_ROLE) {
+        configs[key] = val;
+        emit ConfigSet(key, val);
+    }
+
+    /**
+     * @dev Adds a new role.
+     * Only callable by the DAO_ROLE.
+     * @param role The role to be added.
+     */
+    function addNodeRole(bytes32 role) external onlyRole(DAO_ROLE) {
+        require(roleIds[role] == 0, "Already added.");
+
+        lastRoleId++;
+        roleIds[role] = lastRoleId;
+        emit NodeRoleAdded(role, lastRoleId);
+    }
+
+    /**
      * @dev Returns whether a given node has a given role.
      * @param nodeId The ID of the node.
      * @param role The role to check.
@@ -217,15 +262,6 @@ contract MuonNodeManager is
         bytes32 role
     ) external view returns (bool) {
         return nodesRoles[roleIds[role]][nodeId] > 0;
-    }
-
-    /**
-     * @dev Returns a list of roles associated with a node.
-     * @param nodeId The ID of the node.
-     * @return An array of role IDs.
-     */
-    function getNodeRoles(uint64 nodeId) public view returns (uint64[] memory) {
-        return nodes[nodeId].roles;
     }
 
     /**
@@ -339,51 +375,6 @@ contract MuonNodeManager is
     }
 
     /**
-     * @dev Sets the tier of a node.
-     * Only callable by the DAO_ROLE.
-     * @param nodeId The ID of the node.
-     * @param tier The tier to set.
-     */
-    function setTier(
-        uint64 nodeId,
-        uint8 tier
-    ) external onlyRole(ADMIN_ROLE) updateState updateNodeState(nodeId) {
-        require(nodes[nodeId].id == nodeId, "Node not found.");
-
-        require(nodes[nodeId].tier != tier, "Already set.");
-
-        nodes[nodeId].tier = tier;
-        emit TierSet(nodeId, tier);
-    }
-
-    /**
-     * @dev Sets a configuration value.
-     * Only callable by the DAO_ROLE.
-     * @param key The key of the configuration value.
-     * @param val The value to be set.
-     */
-    function setConfig(
-        string memory key,
-        string memory val
-    ) external onlyRole(DAO_ROLE) {
-        configs[key] = val;
-        emit ConfigSet(key, val);
-    }
-
-    /**
-     * @dev Adds a new role.
-     * Only callable by the DAO_ROLE.
-     * @param role The role to be added.
-     */
-    function addNodeRole(bytes32 role) external onlyRole(DAO_ROLE) {
-        require(roleIds[role] == 0, "Already added.");
-
-        lastRoleId++;
-        roleIds[role] = lastRoleId;
-        emit NodeRoleAdded(role, lastRoleId);
-    }
-
-    /**
      * @dev Retrieves various contract information.
      * @param configKeys An array of configuration keys to retrieve.
      * @return lastUpdateTime The value of lastUpdateTime state variable.
@@ -400,5 +391,14 @@ contract MuonNodeManager is
             configValues[i] = configs[configKeys[i]];
         }
         return (lastUpdateTime, lastNodeId, lastRoleId, configValues);
+    }
+
+    /**
+     * @dev Returns a list of roles associated with a node.
+     * @param nodeId The ID of the node.
+     * @return An array of role IDs.
+     */
+    function getNodeRoles(uint64 nodeId) public view returns (uint64[] memory) {
+        return nodes[nodeId].roles;
     }
 }
