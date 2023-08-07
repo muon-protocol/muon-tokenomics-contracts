@@ -24,11 +24,9 @@ interface IMuonNodeManager {
 
     function deactiveNode(uint64 nodeId) external;
 
-    function stakerAddressInfo(address _addr)
-        external
-        view
-        returns (Node memory node);
+    function stakerAddressInfo(
+        address _addr
+    ) external view returns (Node memory node);
 
     function setTier(uint64 nodeId, uint8 tier) external;
-
 }
