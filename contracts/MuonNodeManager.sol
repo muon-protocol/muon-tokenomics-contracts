@@ -385,9 +385,9 @@ contract MuonNodeManager is
     function getInfo(
         string[] memory configKeys
     ) external view returns (uint256, uint64, uint64, string[] memory) {
-        string[] memory configValues = new string[](configKeys.length);
-
-        for (uint256 i = 0; i < configKeys.length; i++) {
+        uint256 configLength = configKeys.length;
+        string[] memory configValues = new string[](configLength);
+        for (uint256 i = 0; i < configLength; i++) {
             configValues[i] = configs[configKeys[i]];
         }
         return (lastUpdateTime, lastNodeId, lastRoleId, configValues);
