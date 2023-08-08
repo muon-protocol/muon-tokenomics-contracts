@@ -123,34 +123,34 @@ contract MuonNodeStaking is
 
     /**
      * @dev Initializes the contract.
-     * @param muonTokenAddress The address of the Muon token.
-     * @param nodeManagerAddress The address of the Muon Node Manager contract.
+     * @param _muonTokenAddress The address of the Muon token.
+     * @param _nodeManagerAddress The address of the Muon Node Manager contract.
      * @param _muonAppId The Muon app ID.
      * @param _muonPublicKey The Muon public key.
-     * @param bondedTokenAddress The address of the BondedToken contract.
+     * @param _bondedTokenAddress The address of the BondedToken contract.
      */
     function initialize(
-        address muonTokenAddress,
-        address nodeManagerAddress,
+        address _muonTokenAddress,
+        address _nodeManagerAddress,
         uint256 _muonAppId,
         PublicKey memory _muonPublicKey,
-        address bondedTokenAddress
+        address _bondedTokenAddress
     ) external initializer {
         __MuonNodeStakingUpgradeable_init(
-            muonTokenAddress,
-            nodeManagerAddress,
+            _muonTokenAddress,
+            _nodeManagerAddress,
             _muonAppId,
             _muonPublicKey,
-            bondedTokenAddress
+            _bondedTokenAddress
         );
     }
 
     function __MuonNodeStakingUpgradeable_init(
-        address muonTokenAddress,
-        address nodeManagerAddress,
+        address _muonTokenAddress,
+        address _nodeManagerAddress,
         uint256 _muonAppId,
         PublicKey memory _muonPublicKey,
-        address bondedTokenAddress
+        address _bondedTokenAddress
     ) internal initializer {
         __AccessControl_init();
 
@@ -158,9 +158,9 @@ contract MuonNodeStaking is
         _setupRole(ADMIN_ROLE, msg.sender);
         _setupRole(DAO_ROLE, msg.sender);
 
-        muonToken = IERC20Upgradeable(muonTokenAddress);
-        nodeManager = IMuonNodeManager(nodeManagerAddress);
-        bondedToken = IBondedToken(bondedTokenAddress);
+        muonToken = IERC20Upgradeable(_muonTokenAddress);
+        nodeManager = IMuonNodeManager(_nodeManagerAddress);
+        bondedToken = IBondedToken(_bondedTokenAddress);
 
         exitPendingPeriod = 7 days;
         minStakeAmount = 1000 ether;
