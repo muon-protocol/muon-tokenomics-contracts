@@ -72,6 +72,31 @@ contract MuonNodeStaking is
     // function name => paused
     mapping(string => bool) public functionPauseStatus;
 
+    // ======== Events ========
+    event Staked(address indexed stakerAddress, uint256 amount);
+    event Withdrawn(address indexed stakerAddress, uint256 tokenId);
+    event RewardGot(bytes reqId, address indexed stakerAddress, uint256 amount);
+    event ExitRequested(address indexed stakerAddress);
+    event MuonNodeAdded(
+        address indexed nodeAddress,
+        address indexed stakerAddress,
+        string peerId
+    );
+    event RewardsDistributed(
+        uint256 reward,
+        uint256 periodStart,
+        uint256 rewardPeriod
+    );
+    event ExitPendingPeriodUpdated(uint256 exitPendingPeriod);
+    event MinStakeAmountUpdated(uint256 minStakeAmount);
+    event MuonAppIdUpdated(uint256 muonAppId);
+    event MuonPublicKeyUpdated(PublicKey muonPublicKey);
+    event StakeLockStatusChanged(address indexed stakerAddress, bool locked);
+    event StakingTokenUpdated(address indexed token, uint256 multiplier);
+    event TierMaxStakeUpdated(uint8 tier, uint256 maxStakeAmount);
+    event FunctionPauseStatusChanged(string functionName, bool isPaused);
+
+    // ======== Modifiers ========
     /**
      * @dev Modifier to make a function callable only when the contract is not paused.
      */
@@ -643,28 +668,4 @@ contract MuonNodeStaking is
         functionPauseStatus[functionName] = pauseStatus;
         emit FunctionPauseStatusChanged(functionName, pauseStatus);
     }
-
-    // ======== Events ========
-    event Staked(address indexed stakerAddress, uint256 amount);
-    event Withdrawn(address indexed stakerAddress, uint256 tokenId);
-    event RewardGot(bytes reqId, address indexed stakerAddress, uint256 amount);
-    event ExitRequested(address indexed stakerAddress);
-    event MuonNodeAdded(
-        address indexed nodeAddress,
-        address indexed stakerAddress,
-        string peerId
-    );
-    event RewardsDistributed(
-        uint256 reward,
-        uint256 periodStart,
-        uint256 rewardPeriod
-    );
-    event ExitPendingPeriodUpdated(uint256 exitPendingPeriod);
-    event MinStakeAmountUpdated(uint256 minStakeAmount);
-    event MuonAppIdUpdated(uint256 muonAppId);
-    event MuonPublicKeyUpdated(PublicKey muonPublicKey);
-    event StakeLockStatusChanged(address indexed stakerAddress, bool locked);
-    event StakingTokenUpdated(address indexed token, uint256 multiplier);
-    event TierMaxStakeUpdated(uint8 tier, uint256 maxStakeAmount);
-    event FunctionPauseStatusChanged(string functionName, bool isPaused);
 }
