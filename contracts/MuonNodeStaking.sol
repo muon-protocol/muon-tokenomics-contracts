@@ -242,10 +242,9 @@ contract MuonNodeStaking is
      * The staker must first approve the contract to transfer the tokenIdA on their behalf.
      * @param tokenIdA The id of the first token to be merged.
      */
-    function mergeBondedTokens(uint256 tokenIdA)
-        external
-        whenFunctionNotPaused("mergeBondedTokens")
-    {
+    function mergeBondedTokens(
+        uint256 tokenIdA
+    ) external whenFunctionNotPaused("mergeBondedTokens") {
         require(
             bondedToken.ownerOf(tokenIdA) == msg.sender,
             "Caller is not token owner."
@@ -271,11 +270,9 @@ contract MuonNodeStaking is
      * @param tokenId The id of the bonded token.
      * @return amount The total value of the bonded token.
      */
-    function valueOfBondedToken(uint256 tokenId)
-        public
-        view
-        returns (uint256 amount)
-    {
+    function valueOfBondedToken(
+        uint256 tokenId
+    ) public view returns (uint256 amount) {
         uint256[] memory lockedAmounts = bondedToken.getLockedOf(
             tokenId,
             stakingTokens
@@ -300,10 +297,9 @@ contract MuonNodeStaking is
         _updateStaking(msg.sender);
     }
 
-    function _updateStaking(address stakerAddress)
-        private
-        updateReward(stakerAddress)
-    {
+    function _updateStaking(
+        address stakerAddress
+    ) private updateReward(stakerAddress) {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
@@ -408,10 +404,9 @@ contract MuonNodeStaking is
         _deactiveMuonNode(stakerAddress);
     }
 
-    function _deactiveMuonNode(address stakerAddress)
-        private
-        updateReward(stakerAddress)
-    {
+    function _deactiveMuonNode(
+        address stakerAddress
+    ) private updateReward(stakerAddress) {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
@@ -490,11 +485,9 @@ contract MuonNodeStaking is
      * Only callable by the REWARD_ROLE.
      * @param reward The reward amount to be distributed.
      */
-    function distributeRewards(uint256 reward)
-        public
-        updateReward(address(0))
-        onlyRole(REWARD_ROLE)
-    {
+    function distributeRewards(
+        uint256 reward
+    ) public updateReward(address(0)) onlyRole(REWARD_ROLE) {
         if (block.timestamp >= periodFinish) {
             rewardRate = (reward + notPaidRewards) / REWARD_PERIOD;
         } else {
@@ -554,10 +547,10 @@ contract MuonNodeStaking is
      * @param stakerAddress The address of the staker.
      * @param lockStatus Boolean indicating whether to lock (true) or unlock (false) the stake.
      */
-    function setStakeLockStatus(address stakerAddress, bool lockStatus)
-        external
-        onlyRole(REWARD_ROLE)
-    {
+    function setStakeLockStatus(
+        address stakerAddress,
+        bool lockStatus
+    ) external onlyRole(REWARD_ROLE) {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
@@ -589,18 +582,16 @@ contract MuonNodeStaking is
 
     // ======== DAO functions ========
 
-    function setExitPendingPeriod(uint256 _exitPendingPeriod)
-        public
-        onlyRole(DAO_ROLE)
-    {
+    function setExitPendingPeriod(
+        uint256 _exitPendingPeriod
+    ) public onlyRole(DAO_ROLE) {
         exitPendingPeriod = _exitPendingPeriod;
         emit ExitPendingPeriodUpdated(_exitPendingPeriod);
     }
 
-    function setMinStakeAmount(uint256 _minStakeAmount)
-        public
-        onlyRole(DAO_ROLE)
-    {
+    function setMinStakeAmount(
+        uint256 _minStakeAmount
+    ) public onlyRole(DAO_ROLE) {
         minStakeAmount = _minStakeAmount;
         emit MinStakeAmountUpdated(_minStakeAmount);
     }
@@ -610,29 +601,27 @@ contract MuonNodeStaking is
         emit MuonAppIdUpdated(_muonAppId);
     }
 
-    function setMuonPublicKey(PublicKey memory _muonPublicKey)
-        public
-        onlyRole(DAO_ROLE)
-    {
+    function setMuonPublicKey(
+        PublicKey memory _muonPublicKey
+    ) public onlyRole(DAO_ROLE) {
         validatePubKey(_muonPublicKey.x);
 
         muonPublicKey = _muonPublicKey;
         emit MuonPublicKeyUpdated(_muonPublicKey);
     }
 
-    function setTierMaxStakeAmount(uint8 tier, uint256 maxStakeAmount)
-        public
-        onlyRole(DAO_ROLE)
-    {
+    function setTierMaxStakeAmount(
+        uint8 tier,
+        uint256 maxStakeAmount
+    ) public onlyRole(DAO_ROLE) {
         tiersMaxStakeAmount[tier] = maxStakeAmount;
         emit TierMaxStakeUpdated(tier, maxStakeAmount);
     }
 
-    function setMuonNodeTire(address stakerAddress, uint8 tier)
-        public
-        onlyRole(DAO_ROLE)
-        updateReward(stakerAddress)
-    {
+    function setMuonNodeTire(
+        address stakerAddress,
+        uint8 tier
+    ) public onlyRole(DAO_ROLE) updateReward(stakerAddress) {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
