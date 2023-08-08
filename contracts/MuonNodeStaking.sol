@@ -121,6 +121,30 @@ contract MuonNodeStaking is
         _;
     }
 
+    /**
+     * @dev Initializes the contract.
+     * @param muonTokenAddress The address of the Muon token.
+     * @param nodeManagerAddress The address of the Muon Node Manager contract.
+     * @param _muonAppId The Muon app ID.
+     * @param _muonPublicKey The Muon public key.
+     * @param bondedTokenAddress The address of the BondedToken contract.
+     */
+    function initialize(
+        address muonTokenAddress,
+        address nodeManagerAddress,
+        uint256 _muonAppId,
+        PublicKey memory _muonPublicKey,
+        address bondedTokenAddress
+    ) external initializer {
+        __MuonNodeStakingUpgradeable_init(
+            muonTokenAddress,
+            nodeManagerAddress,
+            _muonAppId,
+            _muonPublicKey,
+            bondedTokenAddress
+        );
+    }
+
     function __MuonNodeStakingUpgradeable_init(
         address muonTokenAddress,
         address nodeManagerAddress,
@@ -144,30 +168,6 @@ contract MuonNodeStaking is
         validatePubKey(_muonPublicKey.x);
         muonPublicKey = _muonPublicKey;
         muonAppId = _muonAppId;
-    }
-
-    /**
-     * @dev Initializes the contract.
-     * @param muonTokenAddress The address of the Muon token.
-     * @param nodeManagerAddress The address of the Muon Node Manager contract.
-     * @param _muonAppId The Muon app ID.
-     * @param _muonPublicKey The Muon public key.
-     * @param bondedTokenAddress The address of the BondedToken contract.
-     */
-    function initialize(
-        address muonTokenAddress,
-        address nodeManagerAddress,
-        uint256 _muonAppId,
-        PublicKey memory _muonPublicKey,
-        address bondedTokenAddress
-    ) external initializer {
-        __MuonNodeStakingUpgradeable_init(
-            muonTokenAddress,
-            nodeManagerAddress,
-            _muonAppId,
-            _muonPublicKey,
-            bondedTokenAddress
-        );
     }
 
     function __MuonNodeStakingUpgradeable_init_unchained()
