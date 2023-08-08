@@ -16,6 +16,14 @@ contract MuonNodeStaking is
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
+    struct User {
+        uint256 balance;
+        uint256 paidReward;
+        uint256 paidRewardPerToken;
+        uint256 pendingRewards;
+        uint256 tokenId;
+    }
+
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
     bytes32 public constant REWARD_ROLE = keccak256("REWARD_ROLE");
@@ -38,13 +46,6 @@ contract MuonNodeStaking is
 
     uint256 public rewardPerTokenStored;
 
-    struct User {
-        uint256 balance;
-        uint256 paidReward;
-        uint256 paidRewardPerToken;
-        uint256 pendingRewards;
-        uint256 tokenId;
-    }
     mapping(address => User) public users;
 
     IMuonNodeManager public nodeManager;
