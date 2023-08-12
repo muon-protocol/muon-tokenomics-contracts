@@ -185,9 +185,11 @@ contract MuonNodeStaking is
         address[] calldata tokens,
         uint256[] calldata multipliers
     ) external onlyRole(DAO_ROLE) {
-        require(tokens.length == multipliers.length, "Arrays length mismatch.");
+        uint256 tokensLength = tokens.length;
 
-        for (uint256 i = 0; i < tokens.length; i++) {
+        require(tokensLength == multipliers.length, "Arrays length mismatch.");
+
+        for (uint256 i = 0; i < tokensLength; i++) {
             address token = tokens[i];
             uint256 multiplier = multipliers[i];
 
@@ -224,7 +226,9 @@ contract MuonNodeStaking is
         address[] memory tokens,
         uint256[] memory amounts
     ) external whenFunctionNotPaused("lockToBondedToken") {
-        require(tokens.length == amounts.length, "Arrays length mismatch.");
+        uint256 tokensLength = tokens.length;
+
+        require(tokensLength == amounts.length, "Arrays length mismatch.");
 
         uint256 tokenId = users[msg.sender].tokenId;
         require(tokenId != 0, "No staking found.");
@@ -233,7 +237,7 @@ contract MuonNodeStaking is
             "Staking contract is not the owner of the NFT."
         );
 
-        for (uint256 i = 0; i < tokens.length; i++) {
+        for (uint256 i = 0; i < tokensLength; i++) {
             uint256 balance = IERC20Upgradeable(tokens[i]).balanceOf(
                 address(this)
             );
@@ -305,7 +309,8 @@ contract MuonNodeStaking is
         );
 
         amount = 0;
-        for (uint256 i = 0; i < lockedAmounts.length; i++) {
+        uint256 lockedAmountsLength = lockedAmounts.length;
+        for (uint256 i = 0; i < lockedAmountsLength; i++) {
             address token = stakingTokens[i];
             uint256 multiplier = stakingTokensMultiplier[token];
             amount += (multiplier * lockedAmounts[i]) / 1e18;
