@@ -84,7 +84,7 @@ contract MuonNodeStaking is
     );
     event RewardsDistributed(
         uint256 reward,
-        uint256 periodStart,
+        uint256 indexed periodStart,
         uint256 rewardPeriod
     );
     event ExitPendingPeriodUpdated(uint256 exitPendingPeriod);
@@ -93,8 +93,11 @@ contract MuonNodeStaking is
     event MuonPublicKeyUpdated(PublicKey muonPublicKey);
     event StakeLockStatusChanged(address indexed stakerAddress, bool locked);
     event StakingTokenUpdated(address indexed token, uint256 multiplier);
-    event TierMaxStakeUpdated(uint8 tier, uint256 maxStakeAmount);
-    event FunctionPauseStatusChanged(string functionName, bool isPaused);
+    event TierMaxStakeUpdated(uint8 indexed tier, uint256 maxStakeAmount);
+    event FunctionPauseStatusChanged(
+        string indexed functionName,
+        bool isPaused
+    );
 
     // ======== Modifiers ========
     /**

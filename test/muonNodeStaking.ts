@@ -1284,9 +1284,13 @@ describe("MuonNodeStaking", function () {
 
       const eventArgs = await tx
         .wait()
-        .then((receipt) => receipt.events[0].args);
-      expect(eventArgs.functionName).eq(functionName);
-      expect(eventArgs.isPaused).eq(true);
+        .then((receipt) => {
+          return receipt.events[0].args
+        });
+      expect(eventArgs[0].hash).eq(
+        ethers.utils.keccak256(ethers.utils.toUtf8Bytes(functionName))
+      );
+      expect(eventArgs[1]).eq(true);
 
       expect(await nodeStaking.functionPauseStatus(functionName)).to.be.true;
 
@@ -1308,8 +1312,10 @@ describe("MuonNodeStaking", function () {
         .setFunctionPauseStatus(functionName, false);
       const unpausedFunction = await tx2
         .wait()
-        .then((receipt) => receipt.events[0].args.functionName);
-      expect(unpausedFunction).eq(functionName);
+        .then((receipt) => receipt.events[0].args[0].hash);
+      expect(unpausedFunction).eq(
+        ethers.utils.keccak256(ethers.utils.toUtf8Bytes(functionName))
+      );
 
       expect(await nodeStaking.functionPauseStatus(functionName)).to.be.false;
 
