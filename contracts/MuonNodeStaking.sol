@@ -366,7 +366,7 @@ contract MuonNodeStaking is
         uint256 paidRewardPerToken,
         bytes calldata reqId,
         SchnorrSign calldata signature
-    ) public whenFunctionNotPaused("getReward") {
+    ) external whenFunctionNotPaused("getReward") {
         require(amount > 0, "Invalid amount.");
 
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
@@ -431,7 +431,9 @@ contract MuonNodeStaking is
      * @dev Allows DAO_ROLE to deactive a node.
      * @param stakerAddress The address of the staker.
      */
-    function deactiveMuonNode(address stakerAddress) public onlyRole(DAO_ROLE) {
+    function deactiveMuonNode(
+        address stakerAddress
+    ) external onlyRole(DAO_ROLE) {
         _deactiveMuonNode(stakerAddress);
     }
 
@@ -450,7 +452,7 @@ contract MuonNodeStaking is
     /**
      * @dev Allows stakers to withdraw their staked amount after exiting the network and exit pending period has passed.
      */
-    function withdraw() public whenFunctionNotPaused("withdraw") {
+    function withdraw() external whenFunctionNotPaused("withdraw") {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             msg.sender
         );
@@ -488,7 +490,7 @@ contract MuonNodeStaking is
         address nodeAddress,
         string calldata peerId,
         uint256 tokenId
-    ) public whenFunctionNotPaused("addMuonNode") {
+    ) external whenFunctionNotPaused("addMuonNode") {
         require(users[msg.sender].tokenId == 0, "Already staked an NFT.");
 
         uint256 amount = valueOfBondedToken(tokenId);
@@ -518,7 +520,7 @@ contract MuonNodeStaking is
      */
     function distributeRewards(
         uint256 reward
-    ) public updateReward(address(0)) onlyRole(REWARD_ROLE) {
+    ) external updateReward(address(0)) onlyRole(REWARD_ROLE) {
         if (block.timestamp >= periodFinish) {
             rewardRate = (reward + notPaidRewards) / REWARD_PERIOD;
         } else {
@@ -607,7 +609,7 @@ contract MuonNodeStaking is
         address,
         uint256,
         bytes calldata
-    ) public pure returns (bytes4) {
+    ) external pure returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
@@ -615,26 +617,26 @@ contract MuonNodeStaking is
 
     function setExitPendingPeriod(
         uint256 _exitPendingPeriod
-    ) public onlyRole(DAO_ROLE) {
+    ) external onlyRole(DAO_ROLE) {
         exitPendingPeriod = _exitPendingPeriod;
         emit ExitPendingPeriodUpdated(_exitPendingPeriod);
     }
 
     function setMinStakeAmount(
         uint256 _minStakeAmount
-    ) public onlyRole(DAO_ROLE) {
+    ) external onlyRole(DAO_ROLE) {
         minStakeAmount = _minStakeAmount;
         emit MinStakeAmountUpdated(_minStakeAmount);
     }
 
-    function setMuonAppId(uint256 _muonAppId) public onlyRole(DAO_ROLE) {
+    function setMuonAppId(uint256 _muonAppId) external onlyRole(DAO_ROLE) {
         muonAppId = _muonAppId;
         emit MuonAppIdUpdated(_muonAppId);
     }
 
     function setMuonPublicKey(
         PublicKey memory _muonPublicKey
-    ) public onlyRole(DAO_ROLE) {
+    ) external onlyRole(DAO_ROLE) {
         validatePubKey(_muonPublicKey.x);
 
         muonPublicKey = _muonPublicKey;
@@ -644,7 +646,7 @@ contract MuonNodeStaking is
     function setTierMaxStakeAmount(
         uint8 tier,
         uint256 maxStakeAmount
-    ) public onlyRole(DAO_ROLE) {
+    ) external onlyRole(DAO_ROLE) {
         tiersMaxStakeAmount[tier] = maxStakeAmount;
         emit TierMaxStakeUpdated(tier, maxStakeAmount);
     }
@@ -652,7 +654,7 @@ contract MuonNodeStaking is
     function setMuonNodeTire(
         address stakerAddress,
         uint8 tier
-    ) public onlyRole(DAO_ROLE) updateReward(stakerAddress) {
+    ) external onlyRole(DAO_ROLE) updateReward(stakerAddress) {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
