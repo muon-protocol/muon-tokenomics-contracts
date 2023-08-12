@@ -296,29 +296,6 @@ contract MuonNodeStaking is
     }
 
     /**
-     * @dev Calculates the total value of a bonded token in terms of the staking tokens.
-     * @param tokenId The id of the bonded token.
-     * @return amount The total value of the bonded token.
-     */
-    function valueOfBondedToken(
-        uint256 tokenId
-    ) public view returns (uint256 amount) {
-        uint256[] memory lockedAmounts = bondedToken.getLockedOf(
-            tokenId,
-            stakingTokens
-        );
-
-        amount = 0;
-        uint256 lockedAmountsLength = lockedAmounts.length;
-        for (uint256 i = 0; i < lockedAmountsLength; i++) {
-            address token = stakingTokens[i];
-            uint256 multiplier = stakingTokensMultiplier[token];
-            amount += (multiplier * lockedAmounts[i]) / 1e18;
-        }
-        return amount;
-    }
-
-    /**
      * @dev Updates the staking status for the staker.
      * This function calculates the staked amount based on the locked tokens and their multipliers,
      * and updates the balance and total staked amount accordingly.
@@ -326,33 +303,6 @@ contract MuonNodeStaking is
      */
     function updateStaking() external {
         _updateStaking(msg.sender);
-    }
-
-    function _updateStaking(
-        address stakerAddress
-    ) private updateReward(stakerAddress) {
-        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
-            stakerAddress
-        );
-        require(node.id != 0 && node.active, "No active node found.");
-
-        uint256 tokenId = users[stakerAddress].tokenId;
-        require(tokenId != 0, "No staking found.");
-
-        uint256 amount = valueOfBondedToken(tokenId);
-        require(amount >= minStakeAmount, "Insufficient staking.");
-
-        uint256 maxStakeAmount = tiersMaxStakeAmount[node.tier];
-        if (amount > maxStakeAmount) {
-            amount = maxStakeAmount;
-        }
-
-        if (users[stakerAddress].balance != amount) {
-            totalStaked -= users[stakerAddress].balance;
-            users[stakerAddress].balance = amount;
-            totalStaked += amount;
-            emit Staked(stakerAddress, amount);
-        }
     }
 
     /**
@@ -435,18 +385,6 @@ contract MuonNodeStaking is
         address stakerAddress
     ) external onlyRole(DAO_ROLE) {
         _deactiveMuonNode(stakerAddress);
-    }
-
-    function _deactiveMuonNode(
-        address stakerAddress
-    ) private updateReward(stakerAddress) {
-        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
-            stakerAddress
-        );
-
-        totalStaked -= users[stakerAddress].balance;
-        users[stakerAddress].balance = 0;
-        nodeManager.deactiveNode(node.id);
     }
 
     /**
@@ -533,45 +471,6 @@ contract MuonNodeStaking is
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp + REWARD_PERIOD;
         emit RewardsDistributed(reward, block.timestamp, REWARD_PERIOD);
-    }
-
-    /**
-     * @dev Calculates the current reward per token.
-     * The reward per token is the amount of reward earned per staking token until now.
-     * @return The current reward per token.
-     */
-    function rewardPerToken() public view returns (uint256) {
-        if (totalStaked == 0) {
-            return rewardPerTokenStored;
-        } else {
-            return
-                rewardPerTokenStored +
-                ((lastTimeRewardApplicable() - lastUpdateTime) *
-                    rewardRate *
-                    1e18) /
-                totalStaked;
-        }
-    }
-
-    /**
-     * @dev Calculates the total rewards earned by a node.
-     * @param stakerAddress The staker address of a node.
-     * @return The total rewards earned by a node.
-     */
-    function earned(address stakerAddress) public view returns (uint256) {
-        User memory user = users[stakerAddress];
-        return
-            (user.balance * (rewardPerToken() - user.paidRewardPerToken)) /
-            1e18 +
-            user.pendingRewards;
-    }
-
-    /**
-     * @dev Returns the last time when rewards were applicable.
-     * @return The last time when rewards were applicable.
-     */
-    function lastTimeRewardApplicable() public view returns (uint256) {
-        return block.timestamp < periodFinish ? block.timestamp : periodFinish;
     }
 
     /**
@@ -674,5 +573,106 @@ contract MuonNodeStaking is
 
         functionPauseStatus[functionName] = pauseStatus;
         emit FunctionPauseStatusChanged(functionName, pauseStatus);
+    }
+
+    /**
+     * @dev Calculates the total value of a bonded token in terms of the staking tokens.
+     * @param tokenId The id of the bonded token.
+     * @return amount The total value of the bonded token.
+     */
+    function valueOfBondedToken(
+        uint256 tokenId
+    ) public view returns (uint256 amount) {
+        uint256[] memory lockedAmounts = bondedToken.getLockedOf(
+            tokenId,
+            stakingTokens
+        );
+
+        amount = 0;
+        uint256 lockedAmountsLength = lockedAmounts.length;
+        for (uint256 i = 0; i < lockedAmountsLength; i++) {
+            address token = stakingTokens[i];
+            uint256 multiplier = stakingTokensMultiplier[token];
+            amount += (multiplier * lockedAmounts[i]) / 1e18;
+        }
+        return amount;
+    }
+
+    /**
+     * @dev Calculates the current reward per token.
+     * The reward per token is the amount of reward earned per staking token until now.
+     * @return The current reward per token.
+     */
+    function rewardPerToken() public view returns (uint256) {
+        if (totalStaked == 0) {
+            return rewardPerTokenStored;
+        } else {
+            return
+                rewardPerTokenStored +
+                ((lastTimeRewardApplicable() - lastUpdateTime) *
+                    rewardRate *
+                    1e18) /
+                totalStaked;
+        }
+    }
+
+    /**
+     * @dev Calculates the total rewards earned by a node.
+     * @param stakerAddress The staker address of a node.
+     * @return The total rewards earned by a node.
+     */
+    function earned(address stakerAddress) public view returns (uint256) {
+        User memory user = users[stakerAddress];
+        return
+            (user.balance * (rewardPerToken() - user.paidRewardPerToken)) /
+            1e18 +
+            user.pendingRewards;
+    }
+
+    /**
+     * @dev Returns the last time when rewards were applicable.
+     * @return The last time when rewards were applicable.
+     */
+    function lastTimeRewardApplicable() public view returns (uint256) {
+        return block.timestamp < periodFinish ? block.timestamp : periodFinish;
+    }
+
+    function _updateStaking(
+        address stakerAddress
+    ) private updateReward(stakerAddress) {
+        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
+            stakerAddress
+        );
+        require(node.id != 0 && node.active, "No active node found.");
+
+        uint256 tokenId = users[stakerAddress].tokenId;
+        require(tokenId != 0, "No staking found.");
+
+        uint256 amount = valueOfBondedToken(tokenId);
+        require(amount >= minStakeAmount, "Insufficient staking.");
+
+        uint256 maxStakeAmount = tiersMaxStakeAmount[node.tier];
+        if (amount > maxStakeAmount) {
+            amount = maxStakeAmount;
+        }
+
+        if (users[stakerAddress].balance != amount) {
+            totalStaked -= users[stakerAddress].balance;
+            users[stakerAddress].balance = amount;
+            totalStaked += amount;
+            emit Staked(stakerAddress, amount);
+        }
+    }
+
+    function _deactiveMuonNode(
+        address stakerAddress
+    ) private updateReward(stakerAddress) {
+        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
+            stakerAddress
+        );
+
+        totalStaked -= users[stakerAddress].balance;
+        users[stakerAddress].balance = 0;
+        nodeManager.deactiveNode(node.id);
     }
 }
