@@ -628,7 +628,7 @@ contract MuonNodeStaking is
         emit TierMaxStakeUpdated(tier, maxStakeAmount);
     }
 
-    function setMuonNodeTire(address stakerAddress, uint8 tier)
+    function setMuonNodeTier(address stakerAddress, uint8 tier)
         public
         onlyRole(DAO_ROLE)
         updateReward(stakerAddress)
