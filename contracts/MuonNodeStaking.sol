@@ -24,7 +24,6 @@ contract MuonNodeStaking is
         uint256 tokenId;
     }
 
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
     bytes32 public constant REWARD_ROLE = keccak256("REWARD_ROLE");
 
@@ -158,7 +157,6 @@ contract MuonNodeStaking is
         __AccessControl_init();
 
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(ADMIN_ROLE, msg.sender);
         _setupRole(DAO_ROLE, msg.sender);
 
         muonToken = IERC20Upgradeable(_muonTokenAddress);
