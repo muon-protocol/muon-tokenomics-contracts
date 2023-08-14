@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
@@ -14,7 +13,6 @@ import "./interfaces/IToken.sol";
 
 contract BondedToken is
     Initializable,
-    ERC721Upgradeable,
     PausableUpgradeable,
     AccessControlUpgradeable,
     OwnableUpgradeable,
