@@ -194,10 +194,11 @@ contract MuonNodeManager is
         require(nodesRoles[roleId][nodeId] > 0, "Already unset.");
 
         uint16 index = nodesRoles[roleId][nodeId] - 1;
-        uint64 lRoleId = nodes[nodeId].roles[nodes[nodeId].roles.length - 1];
-        nodes[nodeId].roles[index] = lRoleId;
+        Node storage node = nodes[nodeId];
+        uint64 lRoleId = node.roles[node.roles.length - 1];
+        node.roles[index] = lRoleId;
         nodesRoles[lRoleId][nodeId] = index + 1;
-        nodes[nodeId].roles.pop();
+        node.roles.pop();
         nodesRoles[roleId][nodeId] = 0;
         emit NodeRoleUnset(nodeId, roleId);
     }
