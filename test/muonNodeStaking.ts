@@ -586,7 +586,11 @@ describe("MuonNodeStaking", function () {
   });
 
   describe("withdraw", function () {
+    let skipMuonSig = Boolean(process.env.SKIP_MUON) || false;
     it("should prohibit non-stakers from withdrawing", async function () {
+      if(skipMuonSig) {
+        this.skip();
+      }
       // Distribute rewards
       const initialReward = thirtyDays * 3000;
       await distributeRewards(initialReward);
@@ -614,6 +618,9 @@ describe("MuonNodeStaking", function () {
     });
 
     it("stakers should be able to withdraw their rewards using a TSS network signature", async function () {
+      if(skipMuonSig) {
+        this.skip();
+      }
       // Distribute rewards
       const initialReward = thirtyDays * 3000;
       await distributeRewards(initialReward);
@@ -650,6 +657,9 @@ describe("MuonNodeStaking", function () {
     });
 
     it("should prevent stakers from reusing the same TSS network signature", async function () {
+      if(skipMuonSig) {
+        this.skip();
+      }
       // Distribute rewards
       await distributeRewards(thirtyDays * 3000);
 
@@ -683,6 +693,9 @@ describe("MuonNodeStaking", function () {
     });
 
     it("stakers should have the ability to withdraw their rewards multiple times", async function () {
+      if(skipMuonSig) {
+        this.skip();
+      }
       // Distribute rewards
       const initialReward = thirtyDays * 3000;
       await distributeRewards(initialReward);
@@ -794,6 +807,9 @@ describe("MuonNodeStaking", function () {
     });
 
     it("should disallow stakers from withdrawing more than their rewards by obtaining multiple signatures", async function () {
+      if(skipMuonSig) {
+        this.skip();
+      }
       // Distribute rewards
       const initialReward = thirtyDays * 3000;
       await distributeRewards(initialReward);
@@ -883,17 +899,19 @@ describe("MuonNodeStaking", function () {
       const paidReward = (await nodeStaking.users(staker1.address)).paidReward;
       const rewardPerToken = await nodeStaking.rewardPerToken();
       const earned2 = parseInt((u2.pendingRewards * 80) / 100);
-      const withdrawSig = await getDummySig(
-        staker1.address,
-        paidReward,
-        rewardPerToken,
-        earned2
-      );
-      // withdraw 80% of reward
-      await getReward(staker1, withdrawSig);
+      if(!skipMuonSig) {
+        const withdrawSig = await getDummySig(
+          staker1.address,
+          paidReward,
+          rewardPerToken,
+          earned2
+        );
+        // withdraw 80% of reward
+        await getReward(staker1, withdrawSig);
 
-      const balance2 = await pion.balanceOf(staker1.address);
-      expect(balance2).to.closeTo(balance1.add(earned2), 2000);
+        const balance2 = await pion.balanceOf(staker1.address);
+        expect(balance2).to.closeTo(balance1.add(earned2), 2000);
+      }
 
       // Increase time by 7 days
       await evmIncreaseTime(60 * 60 * 24 * 7);
@@ -905,14 +923,21 @@ describe("MuonNodeStaking", function () {
 
       const u3 = await nodeStaking.users(staker1.address);
       expect(u3.balance).eq(0);
-      expect(u3.pendingRewards).eq(0);
+      if(!skipMuonSig) {  
+        expect(u3.pendingRewards).eq(0);
+      }
       expect(u3.tokenId).eq(0);
       expect(await bondedPion.ownerOf(1)).eq(staker1.address);
 
-      expect(await nodeStaking.earned(staker1.address)).to.be.equal(0);
+      if(!skipMuonSig) {  
+        expect(await nodeStaking.earned(staker1.address)).to.be.equal(0);
+      }
     });
 
     it("should enable exited stakers to withdraw their stake and rewards after the lock period", async function () {
+      if(skipMuonSig) {
+        this.skip();
+      }
       // Distribute rewards
       const initialReward = thirtyDays * 3000;
       await distributeRewards(initialReward);
@@ -1069,28 +1094,30 @@ describe("MuonNodeStaking", function () {
 
       expect(await bondedPion.ownerOf(1)).eq(staker1.address);
 
-      // exited nodes should be able to get their unclaimed reward
-      const paidReward = u2.paidReward;
-      const rewardPerToken = await nodeStaking.rewardPerToken();
-      const earned = u2.pendingRewards;
-      const withdrawSig = await getDummySig(
-        staker1.address,
-        paidReward,
-        rewardPerToken,
-        earned
-      );
-      // withdraw reward
-      await getReward(staker1, withdrawSig);
+      if(!skipMuonSig) {
+        // exited nodes should be able to get their unclaimed reward
+        const paidReward = u2.paidReward;
+        const rewardPerToken = await nodeStaking.rewardPerToken();
+        const earned = u2.pendingRewards;
+        const withdrawSig = await getDummySig(
+          staker1.address,
+          paidReward,
+          rewardPerToken,
+          earned
+        );
+        // withdraw reward
+        await getReward(staker1, withdrawSig);
 
-      const balance2 = await pion.balanceOf(staker1.address);
-      expect(balance2).eq(u2.pendingRewards);
+        const balance2 = await pion.balanceOf(staker1.address);
+        expect(balance2).eq(u2.pendingRewards);
 
-      const u3 = await nodeStaking.users(staker1.address);
-      expect(u3.balance).eq(0);
-      expect(u3.pendingRewards).eq(0);
-      expect(u3.paidReward).eq(u2.pendingRewards);
+        const u3 = await nodeStaking.users(staker1.address);
+        expect(u3.balance).eq(0);
+        expect(u3.pendingRewards).eq(0);
+        expect(u3.paidReward).eq(u2.pendingRewards);
 
-      expect(await nodeStaking.earned(staker1.address)).to.be.equal(0);
+        expect(await nodeStaking.earned(staker1.address)).to.be.equal(0);
+      }
     });
   });
 
