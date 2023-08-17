@@ -159,10 +159,11 @@ describe("MuonNodeManager", function () {
         ["string"],
         ["deployers"]
       );
-      await nodeManager.connect(daoRole).addNodeRole(roleDeployers);
-      const roleIdDeployers = await nodeManager.roleIds(roleDeployers);
-      await nodeManager.connect(daoRole).setNodeRole(nodeId, roleIdDeployers);
-      expect(await nodeManager.nodeHasRole(nodeId, roleDeployers)).to.be.true;
+      const definedRoles: {[key: string]: number} = {
+        [roleDeployers]: 1
+      }
+      await nodeManager.connect(daoRole).setNodeRole(nodeId, definedRoles[roleDeployers]);
+      expect(await nodeManager.nodeHasRole(nodeId, definedRoles[roleDeployers])).to.be.true;
 
       // get the list of the nodes that were edited in the past hour
       const endTime = (await ethers.provider.getBlock("latest")).timestamp;
@@ -287,16 +288,11 @@ describe("MuonNodeManager", function () {
         .connect(adminRole)
         .addNode(node1.address, staker1.address, peerId1, true);
       const nodeId = 1;
-      const role = ethers.utils.solidityKeccak256(["string"], ["poa"]);
 
       const DAO_ROLE = await nodeManager.DAO_ROLE();
       const revertMSG = `AccessControl: account ${adminRole.address.toLowerCase()} is missing role ${DAO_ROLE}`;
-      await expect(
-        nodeManager.connect(adminRole).addNodeRole(role)
-      ).to.be.revertedWith(revertMSG);
 
-      await nodeManager.connect(daoRole).addNodeRole(role);
-      const roleId = await nodeManager.roleIds(role);
+      const roleId = 1;
       await expect(
         nodeManager.connect(adminRole).setNodeRole(nodeId, roleId)
       ).to.be.revertedWith(revertMSG);
@@ -306,14 +302,13 @@ describe("MuonNodeManager", function () {
       ).to.be.revertedWith(revertMSG);
     });
 
-    it("should not allow setting/unsetting roles that have not been added yet", async () => {
+    it("should not allow setting/unsetting zero as roleId", async () => {
       await nodeManager
         .connect(adminRole)
         .addNode(node1.address, staker1.address, peerId1, true);
 
       const nodeId = 1;
-      const role = ethers.utils.solidityKeccak256(["string"], ["poa"]);
-      const roleId = await nodeManager.roleIds(role);
+      const roleId = 0;
 
       await expect(
         nodeManager.connect(daoRole).setNodeRole(nodeId, roleId)
@@ -332,23 +327,16 @@ describe("MuonNodeManager", function () {
         .addNode(node1.address, staker1.address, peerId1, true);
 
       const nodeId = 1;
-      const roleDeployers = ethers.utils.solidityKeccak256(
-        ["string"],
-        ["deployers"]
-      );
-      await nodeManager.connect(daoRole).addNodeRole(roleDeployers);
-      const roleIdDeployers = await nodeManager.roleIds(roleDeployers);
+      const roleIdDeployers = 1;
       await nodeManager.connect(daoRole).setNodeRole(nodeId, roleIdDeployers);
-      expect(await nodeManager.nodeHasRole(nodeId, roleDeployers)).to.be.true;
+      expect(await nodeManager.nodeHasRole(nodeId, roleIdDeployers)).to.be.true;
       let node = await nodeManager.getNode(nodeId);
       let nodeRoles = node.roles.map((role) => role.toNumber());
       expect(nodeRoles.includes(1)).to.be.true;
 
-      const rolePoa = ethers.utils.solidityKeccak256(["string"], ["poa"]);
-      await nodeManager.connect(daoRole).addNodeRole(rolePoa);
-      const roleIdPoa = await nodeManager.roleIds(rolePoa);
+      const roleIdPoa = 2;
       await nodeManager.connect(daoRole).setNodeRole(nodeId, roleIdPoa);
-      expect(await nodeManager.nodeHasRole(nodeId, rolePoa)).to.be.true;
+      expect(await nodeManager.nodeHasRole(nodeId, roleIdPoa)).to.be.true;
 
       const nodeRoleSetEvents = await nodeManager.queryFilter(
         nodeManager.filters.NodeRoleSet(nodeId, null)
@@ -379,20 +367,13 @@ describe("MuonNodeManager", function () {
         .addNode(node1.address, staker1.address, peerId1, true);
 
       const nodeId = 1;
-      const roleDeployers = ethers.utils.solidityKeccak256(
-        ["string"],
-        ["deployers"]
-      );
-      await nodeManager.connect(daoRole).addNodeRole(roleDeployers);
-      const roleIdDeployers = await nodeManager.roleIds(roleDeployers);
+      const roleIdDeployers = 1;
       await nodeManager.connect(daoRole).setNodeRole(nodeId, roleIdDeployers);
-      expect(await nodeManager.nodeHasRole(nodeId, roleDeployers)).to.be.true;
+      expect(await nodeManager.nodeHasRole(nodeId, roleIdDeployers)).to.be.true;
 
-      const rolePoa = ethers.utils.solidityKeccak256(["string"], ["poa"]);
-      await nodeManager.connect(daoRole).addNodeRole(rolePoa);
-      const roleIdPoa = await nodeManager.roleIds(rolePoa);
+      const roleIdPoa = 2;
       await nodeManager.connect(daoRole).setNodeRole(nodeId, roleIdPoa);
-      expect(await nodeManager.nodeHasRole(nodeId, rolePoa)).to.be.true;
+      expect(await nodeManager.nodeHasRole(nodeId, roleIdPoa)).to.be.true;
 
       let node = await nodeManager.getNode(nodeId);
       let nodeRoles = node.roles.map((role) => role.toNumber());
@@ -409,8 +390,8 @@ describe("MuonNodeManager", function () {
       expect(nodeRoles).to.deep.equal([1, 2]);
 
       await nodeManager.connect(daoRole).unsetNodeRole(nodeId, roleIdDeployers);
-      expect(await nodeManager.nodeHasRole(nodeId, roleDeployers)).to.be.false;
-      expect(await nodeManager.nodeHasRole(nodeId, rolePoa)).to.be.true;
+      expect(await nodeManager.nodeHasRole(nodeId, roleIdDeployers)).to.be.false;
+      expect(await nodeManager.nodeHasRole(nodeId, roleIdPoa)).to.be.true;
 
       node = await nodeManager.getNode(nodeId);
       nodeRoles = node.roles.map((role) => role.toNumber());
@@ -434,13 +415,6 @@ describe("MuonNodeManager", function () {
         .connect(adminRole)
         .addNode(node1.address, staker1.address, peerId1, true);
 
-      // Add a node role
-      const roleDeployers = ethers.utils.solidityKeccak256(
-        ["string"],
-        ["deployers"]
-      );
-      await nodeManager.connect(daoRole).addNodeRole(roleDeployers);
-
       // Set the config values
       const configKeys = ["key1", "key2", "key3"];
       const configValues = ["value1", "value2", "value3"];
@@ -451,8 +425,7 @@ describe("MuonNodeManager", function () {
       const info = await nodeManager.getInfo(configKeys);
       expect(info[0]).to.equal(await nodeManager.lastUpdateTime());
       expect(info[1]).to.equal(await nodeManager.lastNodeId());
-      expect(info[2]).to.equal(await nodeManager.lastRoleId());
-      expect(info[3]).to.deep.equal(configValues);
+      expect(info[2]).to.deep.equal(configValues);
     });
   });
 
