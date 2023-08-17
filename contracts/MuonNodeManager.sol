@@ -37,11 +37,6 @@ contract MuonNodeManager is
     // commit id => git commit id
     mapping(string => string) public configs;
 
-    uint64 public lastRoleId;
-
-    // hash(role) => role id
-    mapping(bytes32 => uint64) public roleIds;
-
     // role id => node id => index + 1
     mapping(uint64 => mapping(uint64 => uint16)) public nodesRoles;
 
@@ -49,7 +44,6 @@ contract MuonNodeManager is
     event NodeAdded(uint64 indexed nodeId, Node node);
     event NodeDeactivated(uint64 indexed nodeId);
     event ConfigSet(string indexed key, string value);
-    event NodeRoleAdded(bytes32 indexed role, uint64 roleId);
     event NodeRoleSet(uint64 indexed nodeId, uint64 indexed roleId);
     event NodeRoleUnset(uint64 indexed nodeId, uint64 indexed roleId);
     event TierSet(uint64 indexed nodeId, uint8 indexed tier);
@@ -89,7 +83,6 @@ contract MuonNodeManager is
 
         lastNodeId = 0;
         lastUpdateTime = block.timestamp;
-        lastRoleId = 0;
     }
 
     function __MuonNodeManagerUpgradeable_init_unchained()
@@ -170,7 +163,7 @@ contract MuonNodeManager is
         uint64 nodeId,
         uint64 roleId
     ) external onlyRole(DAO_ROLE) updateState updateNodeState(nodeId) {
-        require(roleId > 0 && roleId <= lastRoleId, "Invalid role ID.");
+        require(roleId > 0, "Invalid role ID.");
 
         require(nodesRoles[roleId][nodeId] == 0, "Already set.");
 
@@ -189,7 +182,7 @@ contract MuonNodeManager is
         uint64 nodeId,
         uint64 roleId
     ) external onlyRole(DAO_ROLE) updateState updateNodeState(nodeId) {
-        require(roleId > 0 && roleId <= lastRoleId, "Invalid role ID.");
+        require(roleId > 0, "Invalid role ID.");
 
         require(nodesRoles[roleId][nodeId] > 0, "Already unset.");
 
@@ -236,29 +229,16 @@ contract MuonNodeManager is
     }
 
     /**
-     * @dev Adds a new role.
-     * Only callable by the DAO_ROLE.
-     * @param role The role to be added.
-     */
-    function addNodeRole(bytes32 role) external onlyRole(DAO_ROLE) {
-        require(roleIds[role] == 0, "Already added.");
-
-        lastRoleId++;
-        roleIds[role] = lastRoleId;
-        emit NodeRoleAdded(role, lastRoleId);
-    }
-
-    /**
      * @dev Returns whether a given node has a given role.
      * @param nodeId The ID of the node.
-     * @param role The role to check.
+     * @param roleId The roleId to check.
      * @return A boolean indicating whether the node has the role.
      */
     function nodeHasRole(
         uint64 nodeId,
-        bytes32 role
+        uint64 roleId
     ) external view returns (bool) {
-        return nodesRoles[roleIds[role]][nodeId] > 0;
+        return nodesRoles[roleId][nodeId] > 0;
     }
 
     /**
@@ -376,18 +356,17 @@ contract MuonNodeManager is
      * @param configKeys An array of configuration keys to retrieve.
      * @return lastUpdateTime The value of lastUpdateTime state variable.
      * @return lastNodeId The value of lastNodeId state variable.
-     * @return lastRoleId The value of lastRoleId state variable.
      * @return configValues An array of configuration values corresponding to the keys.
      */
     function getInfo(
         string[] memory configKeys
-    ) external view returns (uint256, uint64, uint64, string[] memory) {
+    ) external view returns (uint256, uint64, string[] memory) {
         uint256 configLength = configKeys.length;
         string[] memory configValues = new string[](configLength);
         for (uint256 i = 0; i < configLength; i++) {
             configValues[i] = configs[configKeys[i]];
         }
-        return (lastUpdateTime, lastNodeId, lastRoleId, configValues);
+        return (lastUpdateTime, lastNodeId, configValues);
     }
 
     /**
