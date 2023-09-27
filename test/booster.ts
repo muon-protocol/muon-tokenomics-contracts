@@ -155,7 +155,9 @@ describe("Booster", function () {
       ]);
       expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100));
     });
+  });
 
+  describe("Admin operations", async function() {
     it("Should allow the ADMIN withdraw the USDC tokens", async function () {
       await booster.connect(staker1).boost(nftId1, ONE.mul(100));
 
@@ -188,6 +190,24 @@ describe("Booster", function () {
       expect(await usdc.balanceOf(user.address)).eq(0);
     });
 
+    it("Should allow the ADMIN set boostValue", async function () {
+      expect(await booster.boostValue()).eq(ONE.mul(2));
+
+      await booster.connect(admin).setBoostValue(ONE.mul(3));
+
+      expect(await booster.boostValue()).eq(ONE.mul(3));
+    });
+
+    it("Should not allow the NON-ADMIN set boostValue", async function () {
+      expect(await booster.boostValue()).eq(ONE.mul(2));
+
+      await expect(booster.connect(user).setBoostValue(ONE.mul(3))).to.be.reverted;
+
+      expect(await booster.boostValue()).eq(ONE.mul(2));
+    });
+  });
+
+  describe("DAO operations", async function() {
     it("Should allow the DAO set treasury", async function () {
       expect(await booster.treasury()).eq(treasury.address);
 
@@ -209,22 +229,5 @@ describe("Booster", function () {
 
       expect(await booster.treasury()).eq(treasury.address);
     });
-
-    it("Should allow the ADMIN set boostValue", async function () {
-      expect(await booster.boostValue()).eq(ONE.mul(2));
-
-      await booster.connect(admin).setBoostValue(ONE.mul(3));
-
-      expect(await booster.boostValue()).eq(ONE.mul(3));
-    });
-
-    it("Should not allow the NON-ADMIN set boostValue", async function () {
-      expect(await booster.boostValue()).eq(ONE.mul(2));
-
-      await expect(booster.connect(user).setBoostValue(ONE.mul(3))).to.be.reverted;
-
-      expect(await booster.boostValue()).eq(ONE.mul(2));
-    });
-
   });
 });
