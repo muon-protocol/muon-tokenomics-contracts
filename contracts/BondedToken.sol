@@ -22,6 +22,8 @@ contract BondedToken is
 
     bytes32 public constant TRANSFERABLE_ADDRESS_ROLE =
         keccak256("TRANSFERABLE_ADDRESS_ROLE");
+    bytes32 public constant BOOSTER_ROLE =
+        keccak256("BOOSTER_ROLE");
 
     uint256 public tokenIdCounter;
 
@@ -37,6 +39,9 @@ contract BondedToken is
 
     // NFT id => token address => locked amount
     mapping(uint256 => mapping(address => uint256)) public lockedOf;
+
+    // NFT id => boosted amount
+    mapping(uint256 => uint256) public boostedBalance;
 
     // NFT id => mint timestamp
     mapping(uint256 => uint256) public mintedAt;
@@ -173,8 +178,9 @@ contract BondedToken is
     /// @param tokenIdB second tokenId to merge. It's underlying assets will increase
     function merge(uint256 tokenIdA, uint256 tokenIdB) external whenNotPaused {
         require(ownerOf(tokenIdA) == msg.sender, "Not Owned");
+        require(ownerOf(tokenIdB) == msg.sender, "Not Owned");
         require(tokenIdA != tokenIdB, "Same Token ID");
-        require(_ownerOf(tokenIdB) != address(0), "ERC721: invalid token ID");
+        // require(_ownerOf(tokenIdB) != address(0), "ERC721: invalid token ID");
 
         uint256 tokensWhitelistLength = tokensWhitelist.length;
         for (uint256 i; i < tokensWhitelistLength; ++i) {
@@ -191,6 +197,7 @@ contract BondedToken is
             mintedAt[tokenIdB] = mintedAt[tokenIdA];
         }
 
+        boostedBalance[tokenIdB] += boostedBalance[tokenIdA];
         _burn(tokenIdA);
         emit Merged(msg.sender, tokenIdA, tokenIdB);
     }
@@ -200,31 +207,31 @@ contract BondedToken is
     /// @param tokenId id of the NFT to split
     /// @param tokens list of tokens to move to new NFT
     /// @param amounts list of amounts to move to new NFT
-    function split(
-        uint256 tokenId,
-        address[] memory tokens,
-        uint256[] memory amounts
-    ) external whenNotPaused returns (uint256 newTokenId) {
-        require(ownerOf(tokenId) == msg.sender, "Not Owned");
+    // function split(
+    //     uint256 tokenId,
+    //     address[] memory tokens,
+    //     uint256[] memory amounts
+    // ) external whenNotPaused returns (uint256 newTokenId) {
+    //     require(ownerOf(tokenId) == msg.sender, "Not Owned");
 
-        uint256 len = tokens.length;
-        require(len == amounts.length, "Length Mismatch");
+    //     uint256 len = tokens.length;
+    //     require(len == amounts.length, "Length Mismatch");
 
-        newTokenId = mint(msg.sender);
+    //     newTokenId = mint(msg.sender);
 
-        // set new token mint timestamp to the origin token mint timestamp
-        mintedAt[newTokenId] = mintedAt[tokenId];
+    //     // set new token mint timestamp to the origin token mint timestamp
+    //     mintedAt[newTokenId] = mintedAt[tokenId];
 
-        for (uint256 i; i < len; ++i) {
-            require(
-                lockedOf[tokenId][tokens[i]] >= amounts[i],
-                "Insufficient Locked Amount"
-            );
-            lockedOf[tokenId][tokens[i]] -= amounts[i];
-            lockedOf[newTokenId][tokens[i]] += amounts[i];
-        }
-        emit Splited(msg.sender, tokenId, newTokenId, tokens, amounts);
-    }
+    //     for (uint256 i; i < len; ++i) {
+    //         require(
+    //             lockedOf[tokenId][tokens[i]] >= amounts[i],
+    //             "Insufficient Locked Amount"
+    //         );
+    //         lockedOf[tokenId][tokens[i]] -= amounts[i];
+    //         lockedOf[newTokenId][tokens[i]] += amounts[i];
+    //     }
+    //     emit Splited(msg.sender, tokenId, newTokenId, tokens, amounts);
+    // }
 
     /// @notice returns locked amount of requested tokens for given tokenId
     function getLockedOf(
@@ -318,6 +325,19 @@ contract BondedToken is
             totalLocked[tokens[i]] += receivedAmount;
         }
         emit Locked(msg.sender, tokenId, tokens, amounts);
+    }
+
+
+    /// @notice increases the boostedBalance for the given tokenId
+    /// @dev can be called only by Booster
+    /// @param tokenId tokenId to increase its boostedBalance
+    /// @param amount the amount
+    function addBoostedBalance(
+        uint256 tokenId,
+        uint256 amount
+    ) public whenNotPaused onlyRole(BOOSTER_ROLE){
+        require(_ownerOf(tokenId) != address(0), "ERC721: invalid token ID");
+        boostedBalance[tokenId] += amount;
     }
 
     function supportsInterface(

@@ -10,10 +10,17 @@ interface IBondedToken {
 
     function merge(uint256 tokenIdA, uint256 tokenIdB) external;
 
+    function addBoostedBalance(uint256 tokenId, uint256 amount) external;
+
     function getLockedOf(uint256 tokenId, address[] memory tokens)
         external
         view
         returns (uint256[] memory amounts);
+
+    function boostedBalance(uint256 tokenId)
+        external
+        view
+        returns (uint256 amount);
 
     function safeTransferFrom(
         address from,

@@ -464,116 +464,116 @@ describe("bonPION", function () {
       );
     });
 
-    it("Should split NFT", async function () {
-      const pionSplitAmounts = [pionAmount, pionAmount.div(2), 0];
-      const tokenSplitAmounts = [0, tokenAmount.div(2), tokenAmount];
+    // it("Should split NFT", async function () {
+    //   const pionSplitAmounts = [pionAmount, pionAmount.div(2), 0];
+    //   const tokenSplitAmounts = [0, tokenAmount.div(2), tokenAmount];
 
-      for (let i = 0; i < pionSplitAmounts.length; i++) {
-        // mint NFT
-        const tokenId = await bonPion.callStatic.mintAndLock(
-          [pion.address, token.address],
-          [pionAmount, tokenAmount],
-          user.address
-        );
-        await bonPion.mintAndLock(
-          [pion.address, token.address],
-          [pionAmount, tokenAmount],
-          user.address
-        );
+    //   for (let i = 0; i < pionSplitAmounts.length; i++) {
+    //     // mint NFT
+    //     const tokenId = await bonPion.callStatic.mintAndLock(
+    //       [pion.address, token.address],
+    //       [pionAmount, tokenAmount],
+    //       user.address
+    //     );
+    //     await bonPion.mintAndLock(
+    //       [pion.address, token.address],
+    //       [pionAmount, tokenAmount],
+    //       user.address
+    //     );
 
-        // split NFT
-        await bonPion.split(
-          tokenId,
-          [pion.address, token.address],
-          [pionSplitAmounts[i], tokenSplitAmounts[i]]
-        );
-        const newTokenId = tokenId.add(1);
+    //     // split NFT
+    //     await bonPion.split(
+    //       tokenId,
+    //       [pion.address, token.address],
+    //       [pionSplitAmounts[i], tokenSplitAmounts[i]]
+    //     );
+    //     const newTokenId = tokenId.add(1);
 
-        // tokenId locked amounts should be decreased
-        expect(await bonPion.lockedOf(tokenId, pion.address)).eq(
-          pionAmount.sub(pionSplitAmounts[i])
-        );
-        expect(await bonPion.lockedOf(tokenId, token.address)).eq(
-          tokenAmount.sub(tokenSplitAmounts[i])
-        );
+    //     // tokenId locked amounts should be decreased
+    //     expect(await bonPion.lockedOf(tokenId, pion.address)).eq(
+    //       pionAmount.sub(pionSplitAmounts[i])
+    //     );
+    //     expect(await bonPion.lockedOf(tokenId, token.address)).eq(
+    //       tokenAmount.sub(tokenSplitAmounts[i])
+    //     );
 
-        // newTokenId should be minted
-        expect(await bonPion.ownerOf(newTokenId)).eq(user.address);
+    //     // newTokenId should be minted
+    //     expect(await bonPion.ownerOf(newTokenId)).eq(user.address);
 
-        // newTokenId locked amounts should be correct
-        expect(await bonPion.lockedOf(newTokenId, pion.address)).eq(
-          pionSplitAmounts[i]
-        );
-        expect(await bonPion.lockedOf(newTokenId, token.address)).eq(
-          tokenSplitAmounts[i]
-        );
-      }
-    });
+    //     // newTokenId locked amounts should be correct
+    //     expect(await bonPion.lockedOf(newTokenId, pion.address)).eq(
+    //       pionSplitAmounts[i]
+    //     );
+    //     expect(await bonPion.lockedOf(newTokenId, token.address)).eq(
+    //       tokenSplitAmounts[i]
+    //     );
+    //   }
+    // });
 
-    it("Should not split NFT if the lenght of amount list and tokens' address list mismatched", async function () {
-      const tokenId = 1;
+    // it("Should not split NFT if the lenght of amount list and tokens' address list mismatched", async function () {
+    //   const tokenId = 1;
 
-      // mint NFT
-      await bonPion.mintAndLock(
-        [pion.address, token.address],
-        [pionAmount, tokenAmount],
-        user.address
-      );
+    //   // mint NFT
+    //   await bonPion.mintAndLock(
+    //     [pion.address, token.address],
+    //     [pionAmount, tokenAmount],
+    //     user.address
+    //   );
 
-      // split NFT
-      await expect(
-        bonPion.split(
-          tokenId,
-          [pion.address, token.address],
-          [pionAmount, tokenAmount, tokenAmount]
-        )
-      ).to.be.revertedWith("Length Mismatch");
-      await expect(
-        bonPion.split(tokenId, [pion.address, token.address], [pionAmount])
-      ).to.be.revertedWith("Length Mismatch");
-    });
+    //   // split NFT
+    //   await expect(
+    //     bonPion.split(
+    //       tokenId,
+    //       [pion.address, token.address],
+    //       [pionAmount, tokenAmount, tokenAmount]
+    //     )
+    //   ).to.be.revertedWith("Length Mismatch");
+    //   await expect(
+    //     bonPion.split(tokenId, [pion.address, token.address], [pionAmount])
+    //   ).to.be.revertedWith("Length Mismatch");
+    // });
 
-    it("Should not split unowned NFT", async function () {
-      const tokenId = 1;
+    // it("Should not split unowned NFT", async function () {
+    //   const tokenId = 1;
 
-      // mint NFT
-      await bonPion.mintAndLock(
-        [pion.address, token.address],
-        [pionAmount, tokenAmount],
-        user.address
-      );
+    //   // mint NFT
+    //   await bonPion.mintAndLock(
+    //     [pion.address, token.address],
+    //     [pionAmount, tokenAmount],
+    //     user.address
+    //   );
 
-      // split NFT
-      await expect(
-        bonPion
-          .connect(admin)
-          .split(
-            tokenId,
-            [pion.address, token.address],
-            [pionAmount, tokenAmount, tokenAmount]
-          )
-      ).to.be.revertedWith("Not Owned");
-    });
+    //   // split NFT
+    //   await expect(
+    //     bonPion
+    //       .connect(admin)
+    //       .split(
+    //         tokenId,
+    //         [pion.address, token.address],
+    //         [pionAmount, tokenAmount, tokenAmount]
+    //       )
+    //   ).to.be.revertedWith("Not Owned");
+    // });
 
-    it("Should not split NFT with amounts more than locked amounts", async function () {
-      const tokenId = 1;
+    // it("Should not split NFT with amounts more than locked amounts", async function () {
+    //   const tokenId = 1;
 
-      // mint NFT
-      await bonPion.mintAndLock(
-        [pion.address, token.address],
-        [pionAmount, tokenAmount],
-        user.address
-      );
+    //   // mint NFT
+    //   await bonPion.mintAndLock(
+    //     [pion.address, token.address],
+    //     [pionAmount, tokenAmount],
+    //     user.address
+    //   );
 
-      // split NFT
-      await expect(
-        bonPion.split(
-          tokenId,
-          [pion.address, token.address],
-          [pionAmount, tokenAmount.add(1)]
-        )
-      ).to.be.revertedWith("Insufficient Locked Amount");
-    });
+    //   // split NFT
+    //   await expect(
+    //     bonPion.split(
+    //       tokenId,
+    //       [pion.address, token.address],
+    //       [pionAmount, tokenAmount.add(1)]
+    //     )
+    //   ).to.be.revertedWith("Insufficient Locked Amount");
+    // });
   });
 
   describe("Transfer", async function () {
@@ -920,47 +920,47 @@ describe("bonPION", function () {
       expect(await bonPion.ownerOf(tokenIdA)).eq(user.address);
     });
 
-    it("Should split NFT", async function () {
-      const pionAmount = ethers.utils.parseEther("100");
-      const tokenAmount = ethers.utils.parseEther("200");
+    // it("Should split NFT", async function () {
+    //   const pionAmount = ethers.utils.parseEther("100");
+    //   const tokenAmount = ethers.utils.parseEther("200");
 
-      await bonPion.connect(admin).whitelistTokens([token.address]);
+    //   await bonPion.connect(admin).whitelistTokens([token.address]);
 
-      // mint required tokens for user
-      await pion.connect(admin).mint(user.address, MAX_UINT);
-      await token.connect(admin).mint(user.address, MAX_UINT);
+    //   // mint required tokens for user
+    //   await pion.connect(admin).mint(user.address, MAX_UINT);
+    //   await token.connect(admin).mint(user.address, MAX_UINT);
 
-      // approve tokens to bonPion
-      await pion.approve(bonPion.address, MAX_UINT);
-      await token.approve(bonPion.address, MAX_UINT);
+    //   // approve tokens to bonPion
+    //   await pion.approve(bonPion.address, MAX_UINT);
+    //   await token.approve(bonPion.address, MAX_UINT);
 
-      const pionSplitAmounts = [pionAmount, pionAmount.div(2), 0];
-      const tokenSplitAmounts = [0, tokenAmount.div(2), tokenAmount];
+    //   const pionSplitAmounts = [pionAmount, pionAmount.div(2), 0];
+    //   const tokenSplitAmounts = [0, tokenAmount.div(2), tokenAmount];
 
-      // mint NFT
-      const tokenId = await bonPion.callStatic.mintAndLock(
-        [pion.address, token.address],
-        [pionAmount, tokenAmount],
-        user.address
-      );
-      await bonPion.mintAndLock(
-        [pion.address, token.address],
-        [pionAmount, tokenAmount],
-        user.address
-      );
+    //   // mint NFT
+    //   const tokenId = await bonPion.callStatic.mintAndLock(
+    //     [pion.address, token.address],
+    //     [pionAmount, tokenAmount],
+    //     user.address
+    //   );
+    //   await bonPion.mintAndLock(
+    //     [pion.address, token.address],
+    //     [pionAmount, tokenAmount],
+    //     user.address
+    //   );
 
-      // pause
-      await bonPion.connect(admin).pause();
+    //   // pause
+    //   await bonPion.connect(admin).pause();
 
-      // split NFT
-      await expect(
-        bonPion.split(
-          tokenId,
-          [pion.address, token.address],
-          [pionAmount.div(2), tokenAmount.div(2)]
-        )
-      ).to.be.revertedWith("Pausable: paused");
-    });
+    //   // split NFT
+    //   await expect(
+    //     bonPion.split(
+    //       tokenId,
+    //       [pion.address, token.address],
+    //       [pionAmount.div(2), tokenAmount.div(2)]
+    //     )
+    //   ).to.be.revertedWith("Pausable: paused");
+    // });
   });
 
   describe("Set Treasury", async function () {

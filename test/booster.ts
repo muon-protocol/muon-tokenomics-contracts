@@ -100,6 +100,7 @@ describe("Booster", function () {
     await booster.connect(deployer).grantRole(booster.DAO_ROLE(), daoRole.address);
 
     await pion.connect(deployer).grantRole(await pion.MINTER_ROLE(), booster.address);
+    await bondedPion.connect(deployer).grantRole(await bondedPion.BOOSTER_ROLE(), booster.address);
 
     await usdc.connect(staker1).approve(booster.address, ONE.mul(1000));    
     await usdc.connect(staker2).approve(booster.address, ONE.mul(1000));

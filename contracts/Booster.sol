@@ -93,6 +93,7 @@ contract Booster is Initializable, AccessControlUpgradeable {
         } else {
             muonAmount = (amount * reserve0) / reserve1;
         }
+        require(muonAmount <= getBoostableAmount(nftId), "> boostableAmount");
 
         muonToken.mint(address(this), muonAmount);
 
@@ -120,6 +121,7 @@ contract Booster is Initializable, AccessControlUpgradeable {
         muonToken.approve(address(bondedToken), amounts[0]);
         
         bondedToken.lock(nftId, tokens, amounts);
+        bondedToken.addBoostedBalance(nftId, amounts[0]+muonAmount);
     }
 
     function adminWithdraw(
@@ -145,5 +147,16 @@ contract Booster is Initializable, AccessControlUpgradeable {
     /// @param _value The new boost value
     function setBoostValue(uint256 _value) external onlyRole(ADMIN_ROLE) {
         boostValue = _value;
+    }
+
+    function getBoostableAmount(
+        uint256 nftId
+    ) public view returns(uint256){
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(muonToken);
+        uint256 balance = bondedToken.getLockedOf(nftId, tokens)[0];
+        uint256 boostedBalance = bondedToken.boostedBalance(nftId);
+
+        return boostedBalance >= balance ? 0 : balance-boostedBalance;
     }
 }
