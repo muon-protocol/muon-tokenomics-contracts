@@ -112,7 +112,7 @@ describe("Booster", function () {
   });
 
   describe("boost", async function() {
-    it("Should boost the staker bonPion", async function () {
+    it("Should boost the staker bondedPion", async function () {
       expect(await bondedPion.getLockedOf(nftId1, [pion.address])).to.deep.equal([
         ONE.mul(100),
       ]);
@@ -124,6 +124,36 @@ describe("Booster", function () {
         ONE.mul(300),
       ]);
       expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
+    });
+
+    it("Should decrease the boostableAmount after boosting", async function () {
+      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100));
+
+      await booster.connect(staker1).boost(nftId1, ONE.mul(60));
+
+      expect(await bondedPion.getLockedOf(nftId1, [pion.address])).to.deep.equal([
+        ONE.mul(220),
+      ]);
+      expect(await bondedPion.boostedBalance(nftId1)).eq(ONE.mul(180));
+      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(40));
+    });
+
+    it("Should increase the boostableAmount after buying extra Pion from market", async function () {
+      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100));
+
+      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
+
+      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(0));
+      expect(await bondedPion.boostedBalance(nftId1)).eq(ONE.mul(300));
+
+      await pion.connect(deployer).mint(staker1.address, ONE.mul(100));
+      await pion.connect(staker1).approve(bondedPion.address, ONE.mul(100));
+      await bondedPion.connect(staker1).lock(nftId1, [pion.address], [ONE.mul(100)]);
+
+      expect(await bondedPion.getLockedOf(nftId1, [pion.address])).to.deep.equal([
+        ONE.mul(400),
+      ]);
+      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100));
     });
 
     it("Should allow the ADMIN withdraw the USDC tokens", async function () {
