@@ -93,7 +93,9 @@ contract Booster is Initializable, AccessControlUpgradeable {
         } else {
             muonAmount = (amount * reserve0) / reserve1;
         }
-        require(muonAmount <= getBoostableAmount(nftId), "> boostableAmount");
+
+        // allow 1% tolerance to handle slippage
+        require(muonAmount <= (getBoostableAmount(nftId)*101/100), "> boostableAmount");
 
         muonToken.mint(address(this), muonAmount);
 
