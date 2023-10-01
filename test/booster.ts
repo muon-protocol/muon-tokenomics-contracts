@@ -20,6 +20,7 @@ describe("Booster", function () {
   let user: SignerWithAddress;
   let nftId1: number;
   let nftId2: number;
+  let nftId3: number;
 
   let pion: PIONtest;
   let bondedPion: BondedPION;
@@ -75,10 +76,11 @@ describe("Booster", function () {
 
     nftId1 = await mintBondedPion(ONE.mul(100), staker1);
     nftId2 = await mintBondedPion(ONE.mul(200), staker2);
+    nftId3 = await mintBondedPion(ONE.mul(200), staker1);
 
     usdc = await ethers.deployContract("TestToken") as TestToken;
 
-    await usdc.connect(staker1).mint(staker1.address, ONE.mul(200));
+    await usdc.connect(staker1).mint(staker1.address, ONE.mul(800));
     await usdc.connect(staker2).mint(staker2.address, ONE.mul(200));
 
     uniswapV2Router = await deployMockContract(deployer, UNISWAP_V2_ROUTER_ABI.abi);
@@ -108,10 +110,9 @@ describe("Booster", function () {
     await uniswapV2Pair.mock.getReserves.returns(ONE.mul(10), ONE.mul(10), '1695796719');
     await uniswapV2Pair.mock.token0.returns(usdc.address);
     await uniswapV2Router.mock.addLiquidity.returns(ONE.mul(100), ONE.mul(100), ONE.mul(10));
-
   });
 
-  describe("boost", async function() {
+  describe("Boost", async function() {
     it("Should boost the staker bondedPion", async function () {
       expect(await bondedPion.getLockedOf(nftId1, [pion.address])).to.deep.equal([
         ONE.mul(100),
@@ -124,6 +125,22 @@ describe("Booster", function () {
         ONE.mul(300),
       ]);
       expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
+    });
+
+    it("Should not allow duble boosting", async function () {
+      expect(await bondedPion.getLockedOf(nftId1, [pion.address])).to.deep.equal([
+        ONE.mul(100),
+      ]);
+      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(0));
+
+      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
+
+      expect(await bondedPion.getLockedOf(nftId1, [pion.address])).to.deep.equal([
+        ONE.mul(300),
+      ]);
+      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
+
+      await expect(booster.connect(staker1).boost(nftId1, ONE.mul(100))).to.be.revertedWith("> boostableAmount");
     });
 
     it("Should decrease the boostableAmount after boosting", async function () {
@@ -228,6 +245,42 @@ describe("Booster", function () {
       await expect(booster.connect(user).setTreasury(newTreasury.address)).to.be.reverted;
 
       expect(await booster.treasury()).eq(treasury.address);
+    });
+  });
+
+  describe("Merge", async function() {
+    it.only("Should aggregate boostable amount of 2 NFTs upon merging them", async function () {
+      expect(await bondedPion.getLockedOf(nftId1, [pion.address])).to.deep.equal([
+        ONE.mul(100),
+      ]);
+
+      expect(await bondedPion.getLockedOf(nftId2, [pion.address])).to.deep.equal([
+        ONE.mul(200),
+      ]);
+
+      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(0));
+
+      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
+
+      expect(await bondedPion.getLockedOf(nftId1, [pion.address])).to.deep.equal([
+        ONE.mul(300),
+      ]);
+      expect(await bondedPion.boostedBalance(nftId1)).eq(ONE.mul(300));
+      expect(await booster.getBoostableAmount(nftId1)).eq(0);
+      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
+
+      await booster.connect(staker1).boost(nftId3, ONE.mul(150));
+
+      expect(await bondedPion.getLockedOf(nftId3, [pion.address])).to.deep.equal([
+        ONE.mul(500),
+      ]);
+      expect(await bondedPion.boostedBalance(nftId3)).eq(ONE.mul(450));
+      expect(await booster.getBoostableAmount(nftId3)).eq(ONE.mul(50));
+      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(250));
+
+      await bondedPion.connect(staker1).merge(nftId1, nftId3);
+
+      expect(await bondedPion.boostedBalance(nftId3)).eq(ONE.mul(750));
     });
   });
 });
