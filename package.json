@@ -21,6 +21,7 @@
     "@openzeppelin/contracts-upgradeable": "^4.8.3",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
+    "dotenv": "^16.3.1",
     "ethereum-waffle": "^4.0.10",
     "hardhat-upgrades": "^0.0.0",
     "typescript": "^5.0.4"

@@ -140,12 +140,12 @@ describe("MuonNodeStaking", function () {
     await mintBondedPion(ONE.mul(1000), ONE.mul(1000), staker1);
     await bondedPion.connect(staker1).approve(nodeStaking.address, 1);
     await nodeStaking.connect(staker1).addMuonNode(node1.address, peerId1, 1);
-    await nodeStaking.connect(daoRole).setMuonNodeTire(staker1.address, tier1);
+    await nodeStaking.connect(daoRole).setMuonNodeTier(staker1.address, tier1);
 
     await mintBondedPion(ONE.mul(1000), ONE.mul(500), staker2);
     await bondedPion.connect(staker2).approve(nodeStaking.address, 2);
     await nodeStaking.connect(staker2).addMuonNode(node2.address, peerId2, 2);
-    await nodeStaking.connect(daoRole).setMuonNodeTire(staker2.address, tier2);
+    await nodeStaking.connect(daoRole).setMuonNodeTier(staker2.address, tier2);
   });
 
   const getDummySig = async (
@@ -278,7 +278,7 @@ describe("MuonNodeStaking", function () {
       // admins can set tier
       await nodeStaking
         .connect(daoRole)
-        .setMuonNodeTire(staker3.address, tier1);
+        .setMuonNodeTier(staker3.address, tier1);
       expect((await nodeStaking.users(staker3.address)).balance)
         .eq(await nodeStaking.tiersMaxStakeAmount(1))
         .eq(tier1MaxStake);
@@ -450,7 +450,7 @@ describe("MuonNodeStaking", function () {
       await nodeStaking.connect(staker3).addMuonNode(node3.address, peerId3, 3);
       await nodeStaking
         .connect(daoRole)
-        .setMuonNodeTire(staker3.address, tier2);
+        .setMuonNodeTier(staker3.address, tier2);
 
       // Increase time by 10 days
       targetTimestamp = distributeTimestamp + 2 * tenDays;

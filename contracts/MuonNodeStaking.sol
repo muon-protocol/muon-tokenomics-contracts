@@ -551,10 +551,11 @@ contract MuonNodeStaking is
         emit TierMaxStakeUpdated(tier, maxStakeAmount);
     }
 
-    function setMuonNodeTire(
-        address stakerAddress,
-        uint8 tier
-    ) external onlyRole(DAO_ROLE) updateReward(stakerAddress) {
+    function setMuonNodeTier(address stakerAddress, uint8 tier)
+        public
+        onlyRole(DAO_ROLE)
+        updateReward(stakerAddress)
+    {
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             stakerAddress
         );
