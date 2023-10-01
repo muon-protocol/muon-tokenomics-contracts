@@ -76,10 +76,7 @@ contract Booster is Initializable, AccessControlUpgradeable {
     function __Booster_init_unchained() internal initializer {}
 
     function boost(uint256 nftId, uint256 amount) public {
-        // TODO: check limits (Reza)
-
-        // TODO: validate nftId
-
+        require(amount > 0, "0 amount");
         require(
             usdcToken.transferFrom(msg.sender, address(this), amount),
             "transferFrom error"
@@ -142,6 +139,7 @@ contract Booster is Initializable, AccessControlUpgradeable {
     /// @notice Set the treasury address
     /// @param _treasury The new treasury address
     function setTreasury(address _treasury) external onlyRole(DAO_ROLE) {
+        require(_treasury != address(0), "0x0 treasury");
         treasury = _treasury;
     }
 
