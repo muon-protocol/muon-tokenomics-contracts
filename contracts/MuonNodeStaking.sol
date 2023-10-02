@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./utils/MuonClientBase.sol";
+import "./utils/SchnorrSECP256K1VerifierV2.sol";
 import "./interfaces/IMuonNodeManager.sol";
 import "./interfaces/IBondedToken.sol";
 
@@ -71,6 +72,8 @@ contract MuonNodeStaking is
     // function name => paused
     mapping(string => bool) public functionPauseStatus;
 
+    SchnorrSECP256K1VerifierV2 public verifier;
+
     // ======== Events ========
     event Staked(address indexed stakerAddress, uint256 amount);
     event Withdrawn(address indexed stakerAddress, uint256 tokenId);
@@ -97,6 +100,7 @@ contract MuonNodeStaking is
         string indexed functionName,
         bool isPaused
     );
+    event VerifierUpdated(address verifierAddress);
 
     // ======== Modifiers ========
     /**
@@ -344,11 +348,12 @@ contract MuonNodeStaking is
             )
         );
 
-        bool verified = muonVerify(
-            reqId,
+        bool verified = verifier.verifySignature(
+            muonPublicKey.x,
+            muonPublicKey.parity,
+            signature.signature,
             uint256(hash),
-            signature,
-            muonPublicKey
+            signature.nonce
         );
         require(verified, "Invalid signature.");
 
@@ -537,10 +542,17 @@ contract MuonNodeStaking is
     function setMuonPublicKey(
         PublicKey memory _muonPublicKey
     ) external onlyRole(DAO_ROLE) {
-        validatePubKey(_muonPublicKey.x);
+        verifier.validatePubKey(_muonPublicKey.x);
 
         muonPublicKey = _muonPublicKey;
         emit MuonPublicKeyUpdated(_muonPublicKey);
+    }
+
+    function setVerifier(
+        address _verifierAddress
+    ) external onlyRole(DAO_ROLE) {
+        verifier = SchnorrSECP256K1VerifierV2(_verifierAddress);
+        emit VerifierUpdated(_verifierAddress);
     }
 
     function setTierMaxStakeAmount(

@@ -9,6 +9,7 @@ import {
   PIONtest,
   PIONlpTest,
   BondedPION,
+  SchnorrSECP256K1VerifierV2,
 } from "../typechain-types";
 
 describe("MuonNodeStaking", function () {
@@ -35,6 +36,7 @@ describe("MuonNodeStaking", function () {
   let pionLp: PIONlpTest;
   let nodeStaking: MuonNodeStaking;
   let bondedPion: BondedPION;
+  let verifier: SchnorrSECP256K1VerifierV2;
   const thirtyDays = 2592000;
   const muonTokenMultiplier = ONE;
   const muonLpTokenMultiplier = ONE.mul(2);
@@ -89,6 +91,10 @@ describe("MuonNodeStaking", function () {
     nodeManager = await upgrades.deployProxy(MuonNodeManager, []);
     await nodeManager.deployed();
 
+    const SchnorrSECP256K1VerifierV2 = await ethers.getContractFactory("SchnorrSECP256K1VerifierV2");
+    verifier = await SchnorrSECP256K1VerifierV2.connect(deployer).deploy();
+    await verifier.deployed();
+
     const MuonNodeStaking = await ethers.getContractFactory("MuonNodeStaking");
     nodeStaking = await upgrades.deployProxy(MuonNodeStaking, [
       pion.address,
@@ -113,6 +119,10 @@ describe("MuonNodeStaking", function () {
         [pion.address, pionLp.address],
         [muonTokenMultiplier, muonLpTokenMultiplier]
       );
+
+    await nodeStaking
+      .connect(daoRole)
+      .setVerifier(verifier.address);
 
     await bondedPion
       .connect(deployer)
