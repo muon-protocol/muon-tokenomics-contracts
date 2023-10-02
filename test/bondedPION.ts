@@ -7,9 +7,13 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 describe("bonPION", function () {
   let pion: PION, bonPion: BonPION, treasury: string, token: TestToken;
-  let admin: SignerWithAddress, user: SignerWithAddress, booster: SignerWithAddress; 
+  let admin: SignerWithAddress,
+    user: SignerWithAddress,
+    booster: SignerWithAddress;
 
-  let TRANSFERABLE_ADDRESS_ROLE: string, DEFAULT_ADMIN_ROLE: string, BOOSTER_ROLE: string;
+  let TRANSFERABLE_ADDRESS_ROLE: string,
+    DEFAULT_ADMIN_ROLE: string,
+    BOOSTER_ROLE: string;
 
   before(async () => {
     [admin, user, booster] = await ethers.getSigners();
@@ -1057,10 +1061,8 @@ describe("bonPION", function () {
       expect(tokenId).eq(1);
       expect(await bonPion.ownerOf(tokenId)).eq(user.address);
 
-      await bonPion
-        .connect(admin)
-        .grantRole(BOOSTER_ROLE, booster.address);
-      
+      await bonPion.connect(admin).grantRole(BOOSTER_ROLE, booster.address);
+
       expect(await bonPion.boostedBalance(tokenId)).to.be.equal(0);
 
       const amount = ethers.utils.parseEther("100");
@@ -1075,11 +1077,13 @@ describe("bonPION", function () {
       await bonPion.mint(user.address);
       expect(tokenId).eq(1);
       expect(await bonPion.ownerOf(tokenId)).eq(user.address);
-      
+
       expect(await bonPion.boostedBalance(tokenId)).to.be.equal(0);
 
       const amount = ethers.utils.parseEther("100");
-      await expect(bonPion.connect(user).addBoostedBalance(tokenId, amount)).to.be.rejectedWith(revertMSG);
+      await expect(
+        bonPion.connect(user).addBoostedBalance(tokenId, amount)
+      ).to.be.rejectedWith(revertMSG);
     });
 
     it("should not allow booster to add boosted balance when paused", async function () {
@@ -1088,16 +1092,16 @@ describe("bonPION", function () {
       expect(tokenId).eq(1);
       expect(await bonPion.ownerOf(tokenId)).eq(user.address);
 
-      await bonPion
-        .connect(admin)
-        .grantRole(BOOSTER_ROLE, booster.address);
-      
+      await bonPion.connect(admin).grantRole(BOOSTER_ROLE, booster.address);
+
       expect(await bonPion.boostedBalance(tokenId)).to.be.equal(0);
 
       await bonPion.connect(admin).pause();
 
       const amount = ethers.utils.parseEther("100");
-      await expect(bonPion.connect(booster).addBoostedBalance(tokenId, amount)).to.be.revertedWith('Pausable: paused');
+      await expect(
+        bonPion.connect(booster).addBoostedBalance(tokenId, amount)
+      ).to.be.revertedWith("Pausable: paused");
     });
   });
 });
