@@ -123,6 +123,25 @@ contract Booster is Initializable, AccessControlUpgradeable {
         bondedToken.addBoostedBalance(nftId, amounts[0]+muonAmount);
     }
 
+    function createAndBoost(uint256 muonAmount, uint256 usdcAmount) public returns(uint256){
+        require(muonAmount > 0 && usdcAmount > 0, "0 amount");
+        require(
+            muonToken.transferFrom(msg.sender, address(this), muonAmount),
+            "transferFrom error"
+        );
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(muonToken);
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = muonAmount;
+
+        muonToken.approve(address(bondedToken), muonAmount);
+        uint256 nftId = bondedToken.mintAndLock(tokens, amounts, msg.sender);
+        
+        boost(nftId, usdcAmount);
+        return nftId;
+    }
+
     function adminWithdraw(
         uint256 amount,
         address _to,
