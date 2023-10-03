@@ -203,6 +203,21 @@ describe("Booster", function () {
     });
   });
 
+  describe("CreateAndBoost", async function () {
+    it("Should createAndBoost", async function () {
+      await usdc.connect(deployer).mint(staker2.address, ONE.mul(100));
+      await pion.connect(deployer).mint(staker2.address, ONE.mul(100));
+
+      await usdc.connect(staker2).approve(booster.address, ONE.mul(100));
+      await pion.connect(staker2).approve(booster.address, ONE.mul(100));
+
+      const nftId = await booster.connect(staker2).createAndBoost(
+        ONE.mul(100),
+        ONE.mul(100)
+      );
+    });
+  });
+
   describe("Admin operations", async function () {
     it("Should allow the ADMIN withdraw the USDC tokens", async function () {
       await booster.connect(staker1).boost(nftId1, ONE.mul(100));
