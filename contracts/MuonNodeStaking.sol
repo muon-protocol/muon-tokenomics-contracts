@@ -28,8 +28,6 @@ contract MuonNodeStaking is
     bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
     bytes32 public constant REWARD_ROLE = keccak256("REWARD_ROLE");
 
-    uint256 public constant REWARD_PERIOD = 30 days;
-
     uint256 public totalStaked;
 
     uint256 public notPaidRewards;
@@ -74,6 +72,9 @@ contract MuonNodeStaking is
 
     SchnorrSECP256K1VerifierV2 public verifier;
 
+
+    uint256 public rewardPeriod;
+
     // ======== Events ========
     event Staked(address indexed stakerAddress, uint256 amount);
     event Withdrawn(address indexed stakerAddress, uint256 tokenId);
@@ -87,7 +88,7 @@ contract MuonNodeStaking is
     event RewardsDistributed(
         uint256 reward,
         uint256 indexed periodStart,
-        uint256 rewardPeriod
+        uint256 _rewardPeriod
     );
     event ExitPendingPeriodUpdated(uint256 exitPendingPeriod);
     event MinStakeAmountUpdated(uint256 minStakeAmount);
@@ -169,6 +170,8 @@ contract MuonNodeStaking is
 
         exitPendingPeriod = 7 days;
         minStakeAmount = 1000 ether;
+
+        rewardPeriod = 7 days;
 
         validatePubKey(_muonPublicKey.x);
         muonPublicKey = _muonPublicKey;
@@ -466,17 +469,17 @@ contract MuonNodeStaking is
         uint256 reward
     ) external updateReward(address(0)) onlyRole(REWARD_ROLE) {
         if (block.timestamp >= periodFinish) {
-            rewardRate = (reward + notPaidRewards) / REWARD_PERIOD;
+            rewardRate = (reward + notPaidRewards) / rewardPeriod;
         } else {
             uint256 remaining = periodFinish - block.timestamp;
             uint256 leftover = remaining * rewardRate;
-            rewardRate = (reward + leftover + notPaidRewards) / REWARD_PERIOD;
+            rewardRate = (reward + leftover + notPaidRewards) / rewardPeriod;
         }
 
         notPaidRewards = 0;
         lastUpdateTime = block.timestamp;
-        periodFinish = block.timestamp + REWARD_PERIOD;
-        emit RewardsDistributed(reward, block.timestamp, REWARD_PERIOD);
+        periodFinish = block.timestamp + rewardPeriod;
+        emit RewardsDistributed(reward, block.timestamp, rewardPeriod);
     }
 
     /**
@@ -525,6 +528,16 @@ contract MuonNodeStaking is
     ) external onlyRole(DAO_ROLE) {
         exitPendingPeriod = _exitPendingPeriod;
         emit ExitPendingPeriodUpdated(_exitPendingPeriod);
+    }
+
+    function setRewardPeriod(
+        uint256 period
+    ) external updateReward(address(0)) onlyRole(DAO_ROLE) {
+        require(
+            block.timestamp >= periodFinish,
+            "old period is still active"
+        );
+        rewardPeriod = period;
     }
 
     function setMinStakeAmount(
