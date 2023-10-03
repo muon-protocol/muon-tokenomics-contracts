@@ -31,4 +31,10 @@ interface IBondedToken {
     function approve(address to, uint256 tokenId) external;
 
     function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function mintAndLock(
+        address[] memory tokens,
+        uint256[] memory amounts,
+        address to
+    ) external returns (uint256 tokenId);
 }
