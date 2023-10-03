@@ -15,13 +15,15 @@ describe("MuonRewardManager", function () {
   let claimer1: Signer;
   let claimer2: Signer;
   let treasury: Signer;
+  let pauser: Signer;
 
   let rewardManager: MuonRewardManager;
   let pion: PIONtest;
   let bondedPion: BondedPION;
 
   before(async () => {
-    [deployer, claimer1, claimer2, treasury] = await ethers.getSigners();
+    [deployer, claimer1, claimer2, treasury, pauser] =
+      await ethers.getSigners();
   });
 
   beforeEach(async function () {
@@ -36,8 +38,9 @@ describe("MuonRewardManager", function () {
     ]);
     await bondedPion.deployed();
 
-    const MuonRewardManager =
-      await ethers.getContractFactory("MuonRewardManager");
+    const MuonRewardManager = await ethers.getContractFactory(
+      "MuonRewardManager"
+    );
     rewardManager = await upgrades.deployProxy(MuonRewardManager, [
       pion.address,
       bondedPion.address,
@@ -49,6 +52,10 @@ describe("MuonRewardManager", function () {
     await rewardManager
       .connect(deployer)
       .grantRole(await rewardManager.REWARD_ROLE(), rewardRole);
+
+    await rewardManager
+      .connect(deployer)
+      .grantRole(await rewardManager.PAUSER_ROLE(), pauser.address);
   });
 
   const getDummySig = async (claimer) => {
@@ -66,12 +73,12 @@ describe("MuonRewardManager", function () {
       });
   };
 
-  describe("claim reward", function () {
-    it("claimers should be able to withdraw their rewards using reward server signature", async function () {
+  describe("Claim Reward", function () {
+    it("Should allow to claim rewards using reward server signature", async function () {
       const resp = await getDummySig(claimer1);
 
       const rewardManagerBeforeBalance = await pion.balanceOf(
-        rewardManager.address,
+        rewardManager.address
       );
 
       const tx = await rewardManager
@@ -86,29 +93,172 @@ describe("MuonRewardManager", function () {
       expect(lockeds[0]).eq(resp.result.total_reward_e18);
 
       const rewardManagerAfterBalance = await pion.balanceOf(
-        rewardManager.address,
+        rewardManager.address
       );
 
       expect(rewardManagerAfterBalance).eq(
         BigInt(rewardManagerBeforeBalance) -
-          BigInt(resp.result.total_reward_e18),
+          BigInt(resp.result.total_reward_e18)
       );
 
       // Duplicate request
       await expect(
         rewardManager
           .connect(claimer1)
-          .claimReward(resp.result.total_reward_e18, resp.result.signature),
+          .claimReward(resp.result.total_reward_e18, resp.result.signature)
       ).to.be.revertedWith("Already claimed the reward.");
     });
 
-    it("should prevent other accounts from using claimers' signature", async function () {
+    it("Should not allow to claim reward while paused", async function () {
+      const resp = await getDummySig(claimer1);
+
+      await expect(rewardManager.connect(pauser).pause()).to.not.be.reverted;
+
+      await expect(
+        rewardManager
+          .connect(claimer1)
+          .claimReward(resp.result.total_reward_e18, resp.result.signature)
+      ).to.be.revertedWith("Pausable: paused");
+    });
+
+    it("Should prevent other accounts from using claimers' signature", async function () {
       const resp = await getDummySig(claimer1, [claimer1]);
       await expect(
         rewardManager
           .connect(claimer2)
-          .claimReward(resp.result.total_reward_e18, resp.result.signature),
+          .claimReward(resp.result.total_reward_e18, resp.result.signature)
       ).to.be.revertedWith("Invalid signature.");
+    });
+  });
+
+  describe("Pause and Unpause", function () {
+    it("Should not pause by admin", async function () {
+      const revertMSG = `AccessControl: account ${deployer.address.toLowerCase()} is missing role ${await rewardManager.PAUSER_ROLE()}`;
+      await expect(rewardManager.connect(deployer).pause()).to.be.revertedWith(
+        revertMSG
+      );
+    });
+
+    it("Should not pause by user", async function () {
+      const revertMSG = `AccessControl: account ${claimer1.address.toLowerCase()} is missing role ${await rewardManager.PAUSER_ROLE()}`;
+      await expect(rewardManager.connect(claimer1).pause()).to.be.revertedWith(
+        revertMSG
+      );
+    });
+
+    it("Should pause by pauser", async function () {
+      await expect(rewardManager.connect(pauser).pause()).to.not.be.reverted;
+    });
+
+    it("Should not unpause by admin", async function () {
+      await expect(rewardManager.connect(pauser).pause()).to.not.be.reverted;
+      const revertMSG = `AccessControl: account ${deployer.address.toLowerCase()} is missing role ${await rewardManager.PAUSER_ROLE()}`;
+      await expect(
+        rewardManager.connect(deployer).unpause()
+      ).to.be.revertedWith(revertMSG);
+    });
+
+    it("Should not upause by user", async function () {
+      await expect(rewardManager.connect(pauser).pause()).to.not.be.reverted;
+      const revertMSG = `AccessControl: account ${claimer1.address.toLowerCase()} is missing role ${await rewardManager.PAUSER_ROLE()}`;
+      await expect(
+        rewardManager.connect(claimer1).unpause()
+      ).to.be.revertedWith(revertMSG);
+    });
+
+    it("Should unpause by pauser", async function () {
+      await expect(rewardManager.connect(pauser).pause()).to.not.be.reverted;
+      await expect(rewardManager.connect(pauser).unpause()).to.not.be.reverted;
+    });
+  });
+
+  describe("Withdraw", function () {
+    it("Should allow to withdraw by admin", async function () {
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+
+      await expect(
+        rewardManager
+          .connect(deployer)
+          .withdraw(pion.address, ONE.mul(10000), deployer.address)
+      ).not.to.be.reverted;
+
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000 - 10000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(
+        ONE.mul(10000)
+      );
+    });
+
+    it("Should allow to withdraw by admin when pause", async function () {
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+
+      await rewardManager.connect(pauser).pause();
+
+      await expect(
+        rewardManager
+          .connect(deployer)
+          .withdraw(pion.address, ONE.mul(10000), deployer.address)
+      ).not.to.be.reverted;
+
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000 - 10000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(
+        ONE.mul(10000)
+      );
+    });
+
+    it("Should not allow to withdraw by pauser", async function () {
+      const revertMSG = `AccessControl: account ${pauser.address.toLowerCase()} is missing role ${await rewardManager.ADMIN_ROLE()}`;
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+
+      await expect(
+        rewardManager
+          .connect(pauser)
+          .withdraw(pion.address, ONE.mul(10000), deployer.address)
+      ).to.be.revertedWith(revertMSG);
+
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+    });
+
+    it("Should not allow to withdraw by user", async function () {
+      const revertMSG = `AccessControl: account ${claimer1.address.toLowerCase()} is missing role ${await rewardManager.ADMIN_ROLE()}`;
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+
+      await expect(
+        rewardManager
+          .connect(claimer1)
+          .withdraw(pion.address, ONE.mul(10000), deployer.address)
+      ).to.be.revertedWith(revertMSG);
+
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
     });
   });
 });

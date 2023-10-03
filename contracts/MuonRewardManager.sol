@@ -59,8 +59,6 @@ contract MuonRewardManager is
 
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
-        _setupRole(REWARD_ROLE, msg.sender);
-        _setupRole(PAUSER_ROLE, msg.sender);
 
         muonToken = IERC20(_muonTokenAddress);
         bondedToken = IBondedToken(_bondedTokenAddress);
