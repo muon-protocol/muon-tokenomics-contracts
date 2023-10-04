@@ -203,18 +203,56 @@ describe("Booster", function () {
     });
   });
 
-  describe("CreateAndBoost", async function () {
-    it("Should createAndBoost", async function () {
+  describe("Create and Boost", async function () {
+    it("Should create and boost", async function () {
       await usdc.connect(deployer).mint(staker2.address, ONE.mul(100));
       await pion.connect(deployer).mint(staker2.address, ONE.mul(100));
 
       await usdc.connect(staker2).approve(booster.address, ONE.mul(100));
       await pion.connect(staker2).approve(booster.address, ONE.mul(100));
 
-      const nftId = await booster.connect(staker2).createAndBoost(
-        ONE.mul(100),
-        ONE.mul(100)
+      const pionTotalSupply = await pion.totalSupply();
+
+      const nftId = await booster
+        .connect(staker2)
+        .callStatic.createAndBoost(ONE.mul(100), ONE.mul(100));
+      await expect(
+        booster.connect(staker2).createAndBoost(ONE.mul(100), ONE.mul(100))
+      ).not.to.be.reverted;
+
+      expect(nftId).eq(4);
+      expect(await bondedPion.ownerOf(nftId)).eq(staker2.address);
+      expect(await bondedPion.getLockedOf(nftId, [pion.address])).to.deep.equal(
+        [ONE.mul(300)]
       );
+      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
+
+      // bosted pion should be burned
+      expect(await pion.totalSupply()).eq(pionTotalSupply);
+    });
+
+    it("Should not create and boost with muonAmount 0", async function () {
+      await usdc.connect(deployer).mint(staker2.address, ONE.mul(100));
+      await pion.connect(deployer).mint(staker2.address, ONE.mul(100));
+
+      await usdc.connect(staker2).approve(booster.address, ONE.mul(100));
+      await pion.connect(staker2).approve(booster.address, ONE.mul(100));
+
+      await expect(
+        booster.connect(staker2).createAndBoost(0, ONE.mul(100))
+      ).to.be.rejectedWith("0 amount");
+    });
+
+    it("Should not create and boost with usdcAmount 0", async function () {
+      await usdc.connect(deployer).mint(staker2.address, ONE.mul(100));
+      await pion.connect(deployer).mint(staker2.address, ONE.mul(100));
+
+      await usdc.connect(staker2).approve(booster.address, ONE.mul(100));
+      await pion.connect(staker2).approve(booster.address, ONE.mul(100));
+
+      await expect(
+        booster.connect(staker2).createAndBoost(ONE.mul(100), 0)
+      ).to.be.rejectedWith("0 amount");
     });
   });
 
