@@ -7,6 +7,11 @@ import "hardhat-contract-sizer";
 require('dotenv').config();
 
 const networks = {
+  mainnet: {
+    url: "https://rpc.ankr.com/eth",
+    chainId: 1,
+    accounts: [process.env.PRIVATE_KEY || missing_privateKey()]
+  },
   sepolia: {
     url: "https://rpc.ankr.com/eth_sepolia",
     chainId: 11155111,

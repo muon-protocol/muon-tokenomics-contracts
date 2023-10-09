@@ -169,7 +169,7 @@ contract MuonNodeStaking is
         bondedToken = IBondedToken(_bondedTokenAddress);
 
         exitPendingPeriod = 7 days;
-        minStakeAmount = 1000 ether;
+        minStakeAmount = 500 ether;
 
         rewardPeriod = 7 days;
 
