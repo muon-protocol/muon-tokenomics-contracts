@@ -96,6 +96,8 @@ describe("Booster", function () {
     ])) as Booster;
     await booster.deployed();
 
+    await pion.connect(deployer).mint(booster.address, ONE.mul(100000));
+
     await booster
       .connect(deployer)
       .grantRole(booster.ADMIN_ROLE(), admin.address);
@@ -257,50 +259,47 @@ describe("Booster", function () {
   });
 
   describe("Admin operations", async function () {
-    it("Should allow the ADMIN withdraw the USDC tokens", async function () {
-      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
-
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
-      expect(await usdc.balanceOf(admin.address)).eq(0);
+    it("Should allow the ADMIN withdraw the PION tokens", async function () {
+      expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000));
+      expect(await pion.balanceOf(admin.address)).eq(0);
 
       await expect(
         booster
           .connect(admin)
-          .adminWithdraw(ONE.mul(70), admin.address, usdc.address)
+          .adminWithdraw(ONE.mul(1000), admin.address, pion.address)
       ).to.not.be.reverted;
 
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(30));
-      expect(await usdc.balanceOf(admin.address)).eq(ONE.mul(70));
+      expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000 - 1000));
+      expect(await pion.balanceOf(admin.address)).eq(ONE.mul(1000));
     });
 
     it("Should allow the ADMIN withdraw and send to address 0", async function () {
       const zeroAddress = ethers.constants.AddressZero;
-      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
 
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
-      expect(await usdc.balanceOf(admin.address)).eq(0);
+      expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000));
+      expect(await pion.balanceOf(admin.address)).eq(0);
 
       await expect(
         booster
           .connect(admin)
-          .adminWithdraw(ONE.mul(70), zeroAddress, usdc.address)
+          .adminWithdraw(ONE.mul(70), zeroAddress, pion.address)
       ).to.be.reverted;
     });
 
-    it("Should not allow NON-ADMIN withdraw the USDC tokens", async function () {
-      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
+    it("Should not allow NON-ADMIN withdraw the PION tokens", async function () {
+      expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000));
+      expect(await pion.balanceOf(user.address)).eq(0);
 
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
-      expect(await usdc.balanceOf(user.address)).eq(0);
+      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${await booster.ADMIN_ROLE()}`
 
       await expect(
         booster
           .connect(user)
-          .adminWithdraw(ONE.mul(100), user.address, usdc.address)
-      ).to.be.reverted;
+          .adminWithdraw(ONE.mul(100), user.address, pion.address)
+      ).to.be.revertedWith(revertMSG);
 
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
-      expect(await usdc.balanceOf(user.address)).eq(0);
+      expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000));
+      expect(await pion.balanceOf(user.address)).eq(0);
     });
 
     it("Should allow the ADMIN set boostValue", async function () {
