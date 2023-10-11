@@ -12,6 +12,7 @@ import {
   SchnorrSECP256K1VerifierV2,
   TierSetter
 } from "../typechain-types";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 describe("TierSetter", function () {
   const ONE = ethers.utils.parseEther("1");
@@ -19,6 +20,7 @@ describe("TierSetter", function () {
   let deployer: Signer;
   let daoRole: Signer;
   let rewardRole: Signer;
+  let signer: SignerWithAddress;
   let node1: Signer;
   let node2: Signer;
   let node3: Signer;
@@ -63,6 +65,7 @@ describe("TierSetter", function () {
       deployer,
       daoRole,
       rewardRole,
+      signer,
       node1,
       node2,
       node3,
@@ -158,8 +161,8 @@ describe("TierSetter", function () {
 
     const TierSetter = await ethers.getContractFactory("TierSetter");
     tierSetter = await TierSetter.connect(deployer).deploy(
-      staker1.address,
-      nodeStaking.address
+      nodeStaking.address,
+      signer.address
     );
     await tierSetter.deployed();
     await nodeStaking.connect(deployer).grantRole(
@@ -196,9 +199,9 @@ describe("TierSetter", function () {
       var node = await nodeManager.stakerAddressInfo(staker1.address);
       expect(node.tier).eq(0);
 
-      await tierSetter.setTier(staker1.address, tier1);
+      await tierSetter.setTier(staker1.address, tier3, Date.now(), '0x00');
       node = await nodeManager.stakerAddressInfo(staker1.address);
-      expect(node.tier).eq(1);
+      expect(node.tier).eq(tier3);
 
     });
   });
