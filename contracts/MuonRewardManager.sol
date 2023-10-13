@@ -45,7 +45,9 @@ contract MuonRewardManager is Ownable{
         external
         returns (uint256)
     {
-        require(users[msg.sender].tokenId == 0, "Already claimed the reward.");
+        require(
+            users[msg.sender].tokenId == 0 && 
+            users[msg.sender].rewardAmount == 0, "Already claimed the reward.");
 
         bytes32 messageHash = keccak256(
             abi.encodePacked(msg.sender, rewardAmount)
