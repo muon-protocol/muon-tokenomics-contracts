@@ -7,4 +7,8 @@ contract PION is Token {
     function initialize() external initializer {
         Token._initialize("PioneerNetwork", "PION");
     }
+
+    function name() public view virtual override returns (string memory) {
+        return "PION Network";
+    }
 }
