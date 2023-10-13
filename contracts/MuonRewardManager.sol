@@ -64,14 +64,13 @@ contract MuonRewardManager is Ownable{
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = rewardAmount;
 
+        users[msg.sender].rewardAmount = rewardAmount;
+        totalReward += rewardAmount;
+
         muonToken.mint(address(this), rewardAmount);
         uint256 tokenId = bondedToken.mintAndLock(tokens, amounts, msg.sender);
 
-        users[msg.sender].rewardAmount = rewardAmount;
         users[msg.sender].tokenId = tokenId;
-
-        totalReward += rewardAmount;
-
         emit RewardClaimed(msg.sender, rewardAmount, tokenId);
 
         return tokenId;

@@ -116,11 +116,12 @@ contract Booster is Initializable, AccessControlUpgradeable {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = (muonAmount * boostValue) / 1e18;
 
+        bondedToken.addBoostedBalance(nftId, amounts[0]+muonAmount);
+
         muonToken.mint(address(this), amounts[0]);
         muonToken.approve(address(bondedToken), amounts[0]);
         
         bondedToken.lock(nftId, tokens, amounts);
-        bondedToken.addBoostedBalance(nftId, amounts[0]+muonAmount);
     }
 
     function createAndBoost(uint256 muonAmount, uint256 usdcAmount) public returns(uint256){
