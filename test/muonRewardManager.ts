@@ -182,6 +182,24 @@ describe("MuonRewardManager", function () {
       );
     });
 
+    it("Should not allow to withdraw to address 0", async function () {
+      const zeroAddress = ethers.constants.AddressZero;
+
+      await pion.connect(deployer).mint(rewardManager.address, ONE.mul(100000));
+
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+
+      await expect(
+        rewardManager
+          .connect(deployer)
+          .withdraw(pion.address, ONE.mul(10000), zeroAddress)
+      ).to.be.reverted;
+    });
+
     it("Should not allow to withdraw by user", async function () {
       const revertMSG = "Ownable: caller is not the owner";
 
