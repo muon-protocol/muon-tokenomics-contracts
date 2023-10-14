@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IToken.sol";
 import "./interfaces/IBondedToken.sol";
 
-contract Booster is Initializable, AccessControlUpgradeable {
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
+contract Booster is Ownable {
 
     IToken public muonToken;
     IERC20 public usdcToken;
@@ -26,21 +23,20 @@ contract Booster is Initializable, AccessControlUpgradeable {
     // multiplier * 1e18
     uint256 public boostValue;
 
-    function __Booster_init(
+    uint256 public signatureValidityPeriod = 300;
+
+    address public signer;
+
+    constructor(
         address muonTokenAddress,
         address usdcAddress,
         address bondedTokenAddress,
         address _treasury,
         address _uniswapV2Router,
         address _uniswapV2Pair,
-        uint256 _boostValue
-    ) internal initializer {
-        __AccessControl_init();
-
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(ADMIN_ROLE, msg.sender);
-        _setupRole(DAO_ROLE, msg.sender);
-
+        uint256 _boostValue,
+        address _signer
+    ){
         muonToken = IToken(muonTokenAddress);
         usdcToken = IERC20(usdcAddress);
         bondedToken = IBondedToken(bondedTokenAddress);
@@ -50,65 +46,52 @@ contract Booster is Initializable, AccessControlUpgradeable {
 
         treasury = _treasury;
         boostValue = _boostValue;
+        signer = _signer;
     }
 
-    function initialize(
-        address muonTokenAddress,
-        address usdcAddress,
-        address bondedTokenAddress,
-        address _treasury,
-        address _uniswapV2Router,
-        address _uniswapV2Pair,
-        uint256 _boostValue
-    ) external initializer {
-        __Booster_init(
-            muonTokenAddress,
-            usdcAddress,
-            bondedTokenAddress,
-            _treasury,
-            _uniswapV2Router,
-            _uniswapV2Pair,
-            _boostValue
-        );
-        __AccessControl_init();
-    }
-
-    function __Booster_init_unchained() internal initializer {}
-
-    function boost(uint256 nftId, uint256 amount) public {
+    function boost(
+        uint256 nftId,
+        uint256 amount, 
+        uint256 signedPrice,
+        uint256 timestamp,
+        bytes memory signature
+    ) public {
         require(amount > 0, "0 amount");
         require(
-            usdcToken.transferFrom(msg.sender, address(this), amount),
+            block.timestamp <= timestamp + signatureValidityPeriod,
+            "Signature expired."
+        );
+
+        // TODO: uncoment this
+
+        // bytes32 messageHash = keccak256(
+        //     abi.encodePacked(msg.sender, signedPrice, timestamp)
+        // );
+        // messageHash = messageHash.toEthSignedMessageHash();
+        // address recoveredSigner = messageHash.recover(signature);
+        // require(recoveredSigner == signer, "Invalid signature.");
+
+        require(
+            usdcToken.transferFrom(msg.sender, treasury, amount),
             "transferFrom error"
         );
 
         (uint112 reserve0, uint112 reserve1, ) = uniswapV2Pair.getReserves();
 
-        uint256 muonAmount;
+        uint256 muonAmountOnchain;
         if (uniswapV2Pair.token0() == address(usdcToken)) {
-            muonAmount = (amount * reserve1) / reserve0;
+            muonAmountOnchain = (amount * reserve1) / reserve0;
         } else {
-            muonAmount = (amount * reserve0) / reserve1;
+            muonAmountOnchain = (amount * reserve0) / reserve1;
         }
+
+        uint256 muonAmount = amount * signedPrice / 1e18;
+
+        require(validateAmount(muonAmount, muonAmountOnchain), 
+            "Invalid oracle price");
 
         // allow 1% tolerance to handle slippage
         require(muonAmount <= (getBoostableAmount(nftId)*101/100), "> boostableAmount");
-
-        muonToken.mint(address(this), muonAmount);
-
-        muonToken.approve(address(uniswapV2Router), muonAmount);
-        usdcToken.approve(address(uniswapV2Router), amount);
-
-        uniswapV2Router.addLiquidity(
-            address(muonToken),
-            address(usdcToken),
-            muonAmount,
-            amount,
-            0,
-            0,
-            treasury,
-            block.timestamp
-        );
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(muonToken);
@@ -124,7 +107,10 @@ contract Booster is Initializable, AccessControlUpgradeable {
         bondedToken.lock(nftId, tokens, amounts);
     }
 
-    function createAndBoost(uint256 muonAmount, uint256 usdcAmount) public returns(uint256){
+    function createAndBoost(uint256 muonAmount, uint256 usdcAmount,
+        uint256 signedPrice,
+        uint256 timestamp,
+        bytes memory signature) public returns(uint256){
         require(muonAmount > 0 && usdcAmount > 0, "0 amount");
         require(
             muonToken.transferFrom(msg.sender, address(this), muonAmount),
@@ -139,7 +125,7 @@ contract Booster is Initializable, AccessControlUpgradeable {
         muonToken.approve(address(bondedToken), muonAmount);
         uint256 nftId = bondedToken.mintAndLock(tokens, amounts, msg.sender);
         
-        boost(nftId, usdcAmount);
+        boost(nftId, usdcAmount, signedPrice, timestamp, signature);
         return nftId;
     }
 
@@ -147,7 +133,7 @@ contract Booster is Initializable, AccessControlUpgradeable {
         uint256 amount,
         address _to,
         address _tokenAddr
-    ) public onlyRole(ADMIN_ROLE) {
+    ) public onlyOwner {
         require(_to != address(0));
         if (_tokenAddr == address(0)) {
             payable(_to).transfer(amount);
@@ -158,20 +144,31 @@ contract Booster is Initializable, AccessControlUpgradeable {
 
     /// @notice Sets the treasury address
     /// @param _treasury The new treasury address
-    function setTreasury(address _treasury) external onlyRole(DAO_ROLE) {
+    function setTreasury(address _treasury) external onlyOwner {
         require(_treasury != address(0), "0x0 treasury");
         treasury = _treasury;
     }
 
     /// @notice Sets the boostValue
     /// @param _value The new boost value
-    function setBoostValue(uint256 _value) external onlyRole(ADMIN_ROLE) {
+    function setBoostValue(uint256 _value) external onlyOwner {
         boostValue = _value;
     }
 
-    function setTokenInfo(IERC20 _usdc, IUniswapV2Pair _pair) external onlyRole(ADMIN_ROLE) {
+    function setTokenInfo(IERC20 _usdc, IUniswapV2Pair _pair) external onlyOwner {
         usdcToken = _usdc;
         uniswapV2Pair = _pair;
+    }
+
+    function setSigner(address _signer) external onlyOwner {
+        signer = _signer;
+    }
+
+    function setSignatureValidityPeriod(uint256 _newValidityPeriod)
+        external
+        onlyOwner
+    {
+        signatureValidityPeriod = _newValidityPeriod;
     }
 
     function getBoostableAmount(
@@ -183,5 +180,15 @@ contract Booster is Initializable, AccessControlUpgradeable {
         uint256 boostedBalance = bondedToken.boostedBalance(nftId);
 
         return boostedBalance >= balance ? 0 : balance-boostedBalance;
+    }
+
+    function validateAmount(
+        uint256 chainAmount,
+        uint256 oracleAmount
+    ) public view returns(bool){
+        uint256 diff = chainAmount >= oracleAmount ? chainAmount-oracleAmount :
+            oracleAmount-chainAmount;
+        return true;
+        //TODO: fix this
     }
 }

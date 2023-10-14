@@ -84,8 +84,20 @@ describe("Booster", function () {
     );
     uniswapV2Pair = await deployMockContract(deployer, UNISWAP_V2_PAIR_ABI.abi);
 
-    const BoosterFactory = await ethers.getContractFactory("Booster");
-    booster = (await upgrades.deployProxy(BoosterFactory, [
+    // const BoosterFactory = await ethers.getContractFactory("Booster");
+    // booster = (await upgrades.deployProxy(BoosterFactory, [
+    //   pion.address,
+    //   usdc.address,
+    //   bondedPion.address,
+    //   treasury.address,
+    //   uniswapV2Router.address,
+    //   uniswapV2Pair.address,
+    //   ONE.mul(2),
+    // ])) as Booster;
+    // await booster.deployed();
+
+    const Booster = await ethers.getContractFactory("Booster");
+    booster = await Booster.connect(deployer).deploy(
       pion.address,
       usdc.address,
       bondedPion.address,
@@ -93,17 +105,19 @@ describe("Booster", function () {
       uniswapV2Router.address,
       uniswapV2Pair.address,
       ONE.mul(2),
-    ])) as Booster;
+
+      treasury.address // signer
+    );
     await booster.deployed();
 
     await pion.connect(deployer).mint(booster.address, ONE.mul(100000));
 
-    await booster
-      .connect(deployer)
-      .grantRole(booster.ADMIN_ROLE(), admin.address);
-    await booster
-      .connect(deployer)
-      .grantRole(booster.DAO_ROLE(), daoRole.address);
+    // await booster
+    //   .connect(deployer)
+    //   .grantRole(booster.ADMIN_ROLE(), admin.address);
+    // await booster
+    //   .connect(deployer)
+    //   .grantRole(booster.DAO_ROLE(), daoRole.address);
 
     await pion
       .connect(deployer)
@@ -135,12 +149,17 @@ describe("Booster", function () {
       ).to.deep.equal([ONE.mul(100)]);
       expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(0));
 
-      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
+      await booster.connect(staker1).boost(nftId1, ONE.mul(100),
+         ONE.mul(1),
+         Math.floor(new Date().getTime() / 1000).toString(),
+         "0x00"
+      );
 
       expect(
         await bondedPion.getLockedOf(nftId1, [pion.address])
       ).to.deep.equal([ONE.mul(300)]);
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
+      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(0));
+      expect(await usdc.balanceOf(treasury.address)).eq(ONE.mul(100));
     });
 
     it("Should not boost with amount 0", async function () {
@@ -150,32 +169,48 @@ describe("Booster", function () {
       expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(0));
 
       await expect(
-        booster.connect(staker1).boost(nftId1, 0)
+        booster.connect(staker1).boost(nftId1, 0,
+          ONE.mul(1),
+          Math.floor(new Date().getTime() / 1000).toString(),
+          "0x00"
+        )
       ).to.be.revertedWith("0 amount");
     });
 
-    it("Should not allow duble boosting", async function () {
+    it("Should not allow double boosting", async function () {
       expect(
         await bondedPion.getLockedOf(nftId1, [pion.address])
       ).to.deep.equal([ONE.mul(100)]);
       expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(0));
 
-      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
+      await booster.connect(staker1).boost(nftId1, ONE.mul(100),
+        ONE.mul(1),
+        Math.floor(new Date().getTime() / 1000).toString(),
+        "0x00"
+      );
 
       expect(
         await bondedPion.getLockedOf(nftId1, [pion.address])
       ).to.deep.equal([ONE.mul(300)]);
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
+      expect(await usdc.balanceOf(treasury.address)).eq(ONE.mul(100));
 
       await expect(
-        booster.connect(staker1).boost(nftId1, ONE.mul(100))
+        booster.connect(staker1).boost(nftId1, ONE.mul(100),
+          ONE.mul(1),
+          Math.floor(new Date().getTime() / 1000).toString(),
+          "0x00"
+        )
       ).to.be.revertedWith("> boostableAmount");
     });
 
     it("Should decrease the boostableAmount after boosting", async function () {
       expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100));
 
-      await booster.connect(staker1).boost(nftId1, ONE.mul(60));
+      await booster.connect(staker1).boost(nftId1, ONE.mul(60),
+        ONE.mul(1),
+        Math.floor(new Date().getTime() / 1000).toString(),
+        "0x00"
+      );
 
       expect(
         await bondedPion.getLockedOf(nftId1, [pion.address])
@@ -187,7 +222,11 @@ describe("Booster", function () {
     it("Should increase the boostableAmount after buying extra Pion from market", async function () {
       expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100));
 
-      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
+      await booster.connect(staker1).boost(nftId1, ONE.mul(100),
+        ONE.mul(1),
+        Math.floor(new Date().getTime() / 1000).toString(),
+        "0x00"
+      );
 
       expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(0));
       expect(await bondedPion.boostedBalance(nftId1)).eq(ONE.mul(300));
@@ -217,9 +256,17 @@ describe("Booster", function () {
 
       const nftId = await booster
         .connect(staker2)
-        .callStatic.createAndBoost(ONE.mul(100), ONE.mul(100));
+        .callStatic.createAndBoost(ONE.mul(100), ONE.mul(100),
+          ONE.mul(1),
+          Math.floor(new Date().getTime() / 1000).toString(),
+          "0x00"
+        );
       await expect(
-        booster.connect(staker2).createAndBoost(ONE.mul(100), ONE.mul(100))
+        booster.connect(staker2).createAndBoost(ONE.mul(100), ONE.mul(100),
+          ONE.mul(1),
+          Math.floor(new Date().getTime() / 1000).toString(),
+          "0x00"
+        )
       ).not.to.be.reverted;
 
       expect(nftId).eq(4);
@@ -230,7 +277,7 @@ describe("Booster", function () {
       expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
 
       // bosted pion should be burned
-      expect(await pion.totalSupply()).eq(pionTotalSupply);
+      expect(await pion.totalSupply()).eq(pionTotalSupply.sub(ONE.mul(100)));
     });
 
     it("Should not create and boost with muonAmount 0", async function () {
@@ -241,7 +288,11 @@ describe("Booster", function () {
       await pion.connect(staker2).approve(booster.address, ONE.mul(100));
 
       await expect(
-        booster.connect(staker2).createAndBoost(0, ONE.mul(100))
+        booster.connect(staker2).createAndBoost(0, ONE.mul(100), 
+          ONE.mul(1),
+          Math.floor(new Date().getTime() / 1000).toString(),
+          "0x00"
+        )
       ).to.be.rejectedWith("0 amount");
     });
 
@@ -253,7 +304,11 @@ describe("Booster", function () {
       await pion.connect(staker2).approve(booster.address, ONE.mul(100));
 
       await expect(
-        booster.connect(staker2).createAndBoost(ONE.mul(100), 0)
+        booster.connect(staker2).createAndBoost(ONE.mul(100), 0,
+          ONE.mul(1),
+          Math.floor(new Date().getTime() / 1000).toString(),
+          "0x00"
+        )
       ).to.be.rejectedWith("0 amount");
     });
   });
