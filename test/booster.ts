@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
-import { BigNumberish, ContractReceipt } from "ethers";
+import { BigNumberish, ContractReceipt, BigNumber } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
   deployMockContract,
@@ -13,7 +13,7 @@ import { PIONtest, BondedPION, Booster, TestToken } from "../typechain-types";
 import axios from "axios";
 
 const getDummySig = async (
-    wallet
+    wallet: string
   ) => {
     const response = await axios.get(
       `https://pion-price.muon.net/api/price/${wallet}`
@@ -25,8 +25,6 @@ describe("Booster", function () {
   const ONE = ethers.utils.parseEther("1");
 
   let deployer: SignerWithAddress;
-  let admin: SignerWithAddress;
-  let daoRole: SignerWithAddress;
   let treasury: SignerWithAddress;
   let staker1: SignerWithAddress;
   let staker2: SignerWithAddress;
@@ -38,6 +36,7 @@ describe("Booster", function () {
   let pion: PIONtest;
   let bondedPion: BondedPION;
   let booster: Booster;
+  let boostValue: BigNumber
   let usdc: TestToken;
   let uniswapV2Router: MockContract;
   let uniswapV2Pair: MockContract;
@@ -63,7 +62,7 @@ describe("Booster", function () {
   };
 
   before(async () => {
-    [deployer, admin, daoRole, treasury, staker1, staker2, user] =
+    [deployer, treasury, staker1, staker2, user] =
       await ethers.getSigners();
   });
 
@@ -94,18 +93,6 @@ describe("Booster", function () {
     );
     uniswapV2Pair = await deployMockContract(deployer, UNISWAP_V2_PAIR_ABI.abi);
 
-    // const BoosterFactory = await ethers.getContractFactory("Booster");
-    // booster = (await upgrades.deployProxy(BoosterFactory, [
-    //   pion.address,
-    //   usdc.address,
-    //   bondedPion.address,
-    //   treasury.address,
-    //   uniswapV2Router.address,
-    //   uniswapV2Pair.address,
-    //   ONE.mul(2),
-    // ])) as Booster;
-    // await booster.deployed();
-
     const Booster = await ethers.getContractFactory("Booster");
     booster = await Booster.connect(deployer).deploy(
       pion.address,
@@ -115,19 +102,11 @@ describe("Booster", function () {
       uniswapV2Router.address,
       uniswapV2Pair.address,
       ONE.mul(2),
-
       "0xF28bAdc5CBcE790fF10EB9567FD9f2223C473C21" // signer
     );
     await booster.deployed();
+    boostValue = await booster.boostValue()
 
-    await pion.connect(deployer).mint(booster.address, ONE.mul(100000));
-
-    // await booster
-    //   .connect(deployer)
-    //   .grantRole(booster.ADMIN_ROLE(), admin.address);
-    // await booster
-    //   .connect(deployer)
-    //   .grantRole(booster.DAO_ROLE(), daoRole.address);
 
     await pion
       .connect(deployer)
@@ -158,6 +137,8 @@ describe("Booster", function () {
         await bondedPion.getLockedOf(nftId1, [pion.address])
       ).to.deep.equal([ONE.mul(100)]);
       expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(0));
+      const pionSupplyBeforeBoost = await pion.totalSupply();
+
 
       let oracleData = await getDummySig(staker1.address);
       await booster.connect(staker1).boost(nftId1, ONE.mul(100),
@@ -166,11 +147,10 @@ describe("Booster", function () {
         oracleData.signature
       );
 
-      // expect(
-      //   await bondedPion.getLockedOf(nftId1, [pion.address])
-      // ).to.deep.equal([ONE.mul(300)]);
       expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(0));
+      expect(await pion.balanceOf(booster.address)).eq(ONE.mul(0));
       expect(await usdc.balanceOf(treasury.address)).eq(ONE.mul(100));
+      expect(await pion.totalSupply()).eq(pionSupplyBeforeBoost);
     });
 
     it("Should not boost with amount 0", async function () {
@@ -201,9 +181,6 @@ describe("Booster", function () {
         oracleData.signature
       );
 
-      // expect(
-      //   await bondedPion.getLockedOf(nftId1, [pion.address])
-      // ).to.deep.equal([ONE.mul(300)]);
       expect(await usdc.balanceOf(treasury.address)).eq(ONE.mul(100));
 
       oracleData = await getDummySig(staker1.address);
@@ -226,11 +203,18 @@ describe("Booster", function () {
         oracleData.signature
       );
 
+      const signedPrice = BigNumber.from(oracleData.amount)
+      const muonAmount = ONE.mul(60).mul(signedPrice).div(ONE)
+      const boostedBalance = muonAmount.mul(boostValue).div(ONE)
+      const newLockAmount = boostedBalance.add(ONE.mul(100)) 
+
       expect(
         await bondedPion.getLockedOf(nftId1, [pion.address])
-      ).to.deep.equal([ONE.mul(220)]);
-      expect(await bondedPion.boostedBalance(nftId1)).eq(ONE.mul(180));
-      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(40));
+      ).to.deep.equal([newLockAmount]);
+      expect(await bondedPion.boostedBalance(nftId1)).eq(muonAmount.add(boostedBalance));
+      expect(await booster.getBoostableAmount(nftId1)).eq(
+        newLockAmount.sub(muonAmount.add(boostedBalance))
+      );
     });
 
     it("Should increase the boostableAmount after buying extra Pion from market", async function () {
@@ -243,8 +227,18 @@ describe("Booster", function () {
         oracleData.signature
       );
 
-      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(0));
-      expect(await bondedPion.boostedBalance(nftId1)).eq(ONE.mul(300));
+      const signedPrice = BigNumber.from(oracleData.amount)
+      const muonAmount = ONE.mul(100).mul(signedPrice).div(ONE)
+      const boostedBalance = muonAmount.mul(boostValue).div(ONE)
+      const newLockAmount = boostedBalance.add(ONE.mul(100))
+      const boostableAmount = newLockAmount.sub(muonAmount.add(boostedBalance))
+
+      expect(await booster.getBoostableAmount(nftId1)).eq(
+        boostableAmount
+      );
+      expect(await bondedPion.boostedBalance(nftId1)).eq(
+        muonAmount.add(boostedBalance)
+      );
 
       await pion.connect(deployer).mint(staker1.address, ONE.mul(100));
       await pion.connect(staker1).approve(bondedPion.address, ONE.mul(100));
@@ -254,11 +248,11 @@ describe("Booster", function () {
 
       expect(
         await bondedPion.getLockedOf(nftId1, [pion.address])
-      ).to.deep.equal([ONE.mul(400)]);
-      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100));
+      ).to.deep.equal([ONE.mul(100).add(newLockAmount)]);
+      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100).add(boostableAmount));
     });
   });
-  return;
+  return
   describe("Create and Boost", async function () {
     it("Should create and boost", async function () {
       await usdc.connect(deployer).mint(staker2.address, ONE.mul(100));
@@ -357,6 +351,7 @@ describe("Booster", function () {
     });
 
     it("Should not allow NON-ADMIN withdraw the PION tokens", async function () {
+      await pion.connect(deployer).mint(booster.address, ONE.mul(100000));
       expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000));
       expect(await pion.balanceOf(user.address)).eq(0);
 
