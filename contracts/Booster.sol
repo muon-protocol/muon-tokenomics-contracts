@@ -28,6 +28,8 @@ contract Booster is Ownable {
 
     uint256 public signatureValidityPeriod = 300;
 
+    uint8 public tolerancePercentage = 5;
+
     address public signer;
 
     constructor(
@@ -91,8 +93,8 @@ contract Booster is Ownable {
         require(validateAmount(muonAmount, muonAmountOnchain), 
             "Invalid oracle price");
 
-        // allow 1% tolerance to handle slippage
-        require(muonAmount <= (getBoostableAmount(nftId)*101/100), "> boostableAmount");
+        // allow 5% tolerance to handle slippage
+        require(muonAmount <= (getBoostableAmount(nftId)*(100+tolerancePercentage)/100), "> boostableAmount");
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(muonToken);
@@ -172,6 +174,13 @@ contract Booster is Ownable {
         signatureValidityPeriod = _newValidityPeriod;
     }
 
+    function setTolerancePercentage(uint8 percentage)
+        external
+        onlyOwner
+    {
+        tolerancePercentage = percentage;
+    }
+
     function getBoostableAmount(
         uint256 nftId
     ) public view returns(uint256){
@@ -187,9 +196,11 @@ contract Booster is Ownable {
         uint256 chainAmount,
         uint256 oracleAmount
     ) public view returns(bool){
-        uint256 diff = chainAmount >= oracleAmount ? chainAmount-oracleAmount :
-            oracleAmount-chainAmount;
+        uint256 maxPrice = chainAmount*(100+tolerancePercentage)/100;
+        uint256 minPrice = chainAmount*(100-tolerancePercentage)/100;
+        if(oracleAmount > maxPrice || oracleAmount < minPrice){
+            return false;
+        }
         return true;
-        //TODO: fix this
     }
 }
