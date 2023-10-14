@@ -20,7 +20,6 @@ contract Booster is Ownable {
 
     address public treasury;
 
-    IUniswapV2Router02 public uniswapV2Router;
     IUniswapV2Pair public uniswapV2Pair;
 
     // multiplier * 1e18
@@ -32,12 +31,19 @@ contract Booster is Ownable {
 
     address public signer;
 
+    event Boosted(
+        uint256 indexed nftId,
+        address indexed addr,
+        uint256 usdcAmount,
+        uint256 tokenPrice,
+        uint256 boostedAmount
+    );
+
     constructor(
         address muonTokenAddress,
         address usdcAddress,
         address bondedTokenAddress,
         address _treasury,
-        address _uniswapV2Router,
         address _uniswapV2Pair,
         uint256 _boostValue,
         address _signer
@@ -46,7 +52,6 @@ contract Booster is Ownable {
         usdcToken = IERC20(usdcAddress);
         bondedToken = IBondedToken(bondedTokenAddress);
 
-        uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
         uniswapV2Pair = IUniswapV2Pair(_uniswapV2Pair);
 
         treasury = _treasury;
@@ -90,7 +95,7 @@ contract Booster is Ownable {
 
         uint256 muonAmount = amount * signedPrice / 1e18;
 
-        require(validateAmount(muonAmount, muonAmountOnchain), 
+        require(validateAmount(muonAmountOnchain, muonAmount), 
             "Invalid oracle price");
 
         // allow 5% tolerance to handle slippage
@@ -108,6 +113,14 @@ contract Booster is Ownable {
         muonToken.approve(address(bondedToken), amounts[0]);
         
         bondedToken.lock(nftId, tokens, amounts);
+        
+        emit Boosted(
+            nftId,
+            msg.sender,
+            amount,
+            signedPrice,
+            amounts[0]
+        );
     }
 
     function createAndBoost(uint256 muonAmount, uint256 usdcAmount,

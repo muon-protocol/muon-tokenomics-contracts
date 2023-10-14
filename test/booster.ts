@@ -38,7 +38,6 @@ describe("Booster", function () {
   let booster: Booster;
   let boostValue: BigNumber
   let usdc: TestToken;
-  let uniswapV2Router: MockContract;
   let uniswapV2Pair: MockContract;
 
   const mintBondedPion = async (
@@ -87,10 +86,6 @@ describe("Booster", function () {
     await usdc.connect(staker1).mint(staker1.address, ONE.mul(800));
     await usdc.connect(staker2).mint(staker2.address, ONE.mul(200));
 
-    uniswapV2Router = await deployMockContract(
-      deployer,
-      UNISWAP_V2_ROUTER_ABI.abi
-    );
     uniswapV2Pair = await deployMockContract(deployer, UNISWAP_V2_PAIR_ABI.abi);
 
     const Booster = await ethers.getContractFactory("Booster");
@@ -99,7 +94,6 @@ describe("Booster", function () {
       usdc.address,
       bondedPion.address,
       treasury.address,
-      uniswapV2Router.address,
       uniswapV2Pair.address,
       ONE.mul(2),
       "0xF28bAdc5CBcE790fF10EB9567FD9f2223C473C21" // signer
@@ -124,11 +118,7 @@ describe("Booster", function () {
       "1695796719"
     );
     await uniswapV2Pair.mock.token0.returns(usdc.address);
-    await uniswapV2Router.mock.addLiquidity.returns(
-      ONE.mul(100),
-      ONE.mul(100),
-      ONE.mul(10)
-    );
+    
   });
 
   describe("Boost", async function () {
