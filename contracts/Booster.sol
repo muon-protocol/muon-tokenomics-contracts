@@ -7,8 +7,11 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IToken.sol";
 import "./interfaces/IBondedToken.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
 
 contract Booster is Ownable {
+    using ECDSA for bytes32;
 
     IToken public muonToken;
     IERC20 public usdcToken;
@@ -62,14 +65,12 @@ contract Booster is Ownable {
             "Signature expired."
         );
 
-        // TODO: uncoment this
-
-        // bytes32 messageHash = keccak256(
-        //     abi.encodePacked(msg.sender, signedPrice, timestamp)
-        // );
-        // messageHash = messageHash.toEthSignedMessageHash();
-        // address recoveredSigner = messageHash.recover(signature);
-        // require(recoveredSigner == signer, "Invalid signature.");
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(msg.sender, signedPrice, timestamp)
+        );
+        messageHash = messageHash.toEthSignedMessageHash();
+        address recoveredSigner = messageHash.recover(signature);
+        require(recoveredSigner == signer, "Invalid signature.");
 
         require(
             usdcToken.transferFrom(msg.sender, treasury, amount),
