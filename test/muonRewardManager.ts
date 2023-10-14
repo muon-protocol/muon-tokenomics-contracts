@@ -4,6 +4,7 @@ import { expect } from "chai";
 import axios from "axios";
 
 import { MuonRewardManager, PIONtest, BondedPION } from "../typechain-types";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 describe("MuonRewardManager", function () {
   const ONE = ethers.utils.parseEther("1");
@@ -11,10 +12,10 @@ describe("MuonRewardManager", function () {
   const rewardRole = "0x3E15aEAE0414B0400f29B41fc9e12e2CBa08e8d5";
   const dummyServer = "https://alice-test.muon.net/reward-server/rewardsTest";
 
-  let deployer: Signer;
-  let claimer1: Signer;
-  let claimer2: Signer;
-  let treasury: Signer;
+  let deployer: SignerWithAddress;
+  let claimer1: SignerWithAddress;
+  let claimer2: SignerWithAddress;
+  let treasury: SignerWithAddress;
 
   let rewardManager: MuonRewardManager;
   let pion: PIONtest;
@@ -27,14 +28,14 @@ describe("MuonRewardManager", function () {
 
   beforeEach(async function () {
     const PIONtest = await ethers.getContractFactory("PIONtest");
-    pion = await upgrades.deployProxy(PIONtest, []);
+    pion = await upgrades.deployProxy(PIONtest, []) as PIONtest;
     await pion.deployed();
 
     const BondedPION = await ethers.getContractFactory("BondedPION");
     bondedPion = await upgrades.deployProxy(BondedPION, [
       pion.address,
       treasury.address,
-    ]);
+    ]) as BondedPION;
     await bondedPion.deployed();
 
     const MuonRewardManager = await ethers.getContractFactory("MuonRewardManager");
@@ -51,7 +52,7 @@ describe("MuonRewardManager", function () {
     );
   });
 
-  const getDummySig = async (claimer) => {
+  const getDummySig = async (claimer: SignerWithAddress) => {
     const data = {
       claimer: claimer.address,
     };
@@ -78,8 +79,10 @@ describe("MuonRewardManager", function () {
         .connect(claimer1)
         .claimReward(resp.result.total_reward_e18, resp.result.signature);
       const receipt = await tx.wait();
-      const tokenId =
-        receipt.events[receipt.events.length - 1].args.tokenId.toNumber();
+      let tokenId = 0;
+      if(receipt.events) {
+        tokenId = receipt.events[receipt.events.length - 1].args?.tokenId.toNumber();
+      }
       expect(tokenId).eq(1);
 
       const lockeds = await bondedPion.getLockedOf(tokenId, [pion.address]);
@@ -103,58 +106,148 @@ describe("MuonRewardManager", function () {
     });
 
     it("Should prevent other accounts from using claimers' signature", async function () {
-      const resp = await getDummySig(claimer1, [claimer1]);
+      const resp = await getDummySig(claimer1);
       await expect(
         rewardManager
           .connect(claimer2)
           .claimReward(resp.result.total_reward_e18, resp.result.signature)
       ).to.be.revertedWith("Invalid signature.");
     });
+
+    it("Should prevent using the fake signature to claim the reward", async function() {
+      rewardManager.connect(deployer).setSigner(deployer.address);
+      const resp = await getDummySig(claimer1);
+      await expect(
+        rewardManager
+          .connect(claimer1)
+          .claimReward(resp.result.total_reward_e18, resp.result.signature)
+      ).to.be.revertedWith("Invalid signature.");
+    });
+
+    it("Claimed rewards should be burned", async function() {
+      const resp = await getDummySig(claimer1);
+      
+      const tx = await rewardManager
+          .connect(claimer1)
+          .claimReward(resp.result.total_reward_e18, resp.result.signature);
+      const receipt = await tx.wait();
+      let tokenId = 0;
+      if(receipt.events) {
+        tokenId = receipt.events[receipt.events.length - 1].args?.tokenId.toNumber();
+      }
+      expect(tokenId).eq(1);
+
+      const lockeds = await bondedPion.getLockedOf(tokenId, [pion.address]);
+      expect(lockeds[0]).eq(resp.result.total_reward_e18);
+
+      expect(await pion.totalSupply()).to.be.eq(0);
+    });
+
+    it("Should prevent from manipulating rewardAmount", async function() {
+      const resp = await getDummySig(claimer1);
+      const manipulatedReward = BigNumber.from(resp.result.total_reward_e18)
+        .add(ONE).toString();
+      await expect(
+        rewardManager
+          .connect(claimer1)
+          .claimReward(manipulatedReward, resp.result.signature)
+      ).to.be.revertedWith("Invalid signature.");
+    });
+
   });
 
   
-  // describe("Withdraw", function () {
-  //   it("Should allow to withdraw by admin", async function () {
-  //     expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
-  //       ONE.mul(100000)
-  //     );
+  describe("Withdraw", function () {
+    it("Should allow to withdraw by owner", async function () {
+      await pion.connect(deployer).mint(rewardManager.address, ONE.mul(100000));
 
-  //     expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
 
-  //     await expect(
-  //       rewardManager
-  //         .connect(deployer)
-  //         .withdraw(pion.address, ONE.mul(10000), deployer.address)
-  //     ).not.to.be.reverted;
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
 
-  //     expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
-  //       ONE.mul(100000 - 10000)
-  //     );
+      await expect(
+        rewardManager
+          .connect(deployer)
+          .withdraw(pion.address, ONE.mul(10000), deployer.address)
+      ).not.to.be.reverted;
 
-  //     expect(await pion.balanceOf(deployer.address)).to.be.equal(
-  //       ONE.mul(10000)
-  //     );
-  //   });
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000 - 10000)
+      );
 
-  //   it("Should not allow to withdraw by user", async function () {
-  //     const revertMSG = `AccessControl: account ${claimer1.address.toLowerCase()} is missing role`;
-  //     expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
-  //       ONE.mul(100000)
-  //     );
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(
+        ONE.mul(10000)
+      );
+    });
 
-  //     expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+    it("Should not allow to withdraw to address 0", async function () {
+      const zeroAddress = ethers.constants.AddressZero;
 
-  //     await expect(
-  //       rewardManager
-  //         .connect(claimer1)
-  //         .withdraw(pion.address, ONE.mul(10000), deployer.address)
-  //     ).to.be.revertedWith(revertMSG);
+      await pion.connect(deployer).mint(rewardManager.address, ONE.mul(100000));
 
-  //     expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
-  //       ONE.mul(100000)
-  //     );
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
 
-  //     expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
-  //   });
-  // });
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+
+      await expect(
+        rewardManager
+          .connect(deployer)
+          .withdraw(pion.address, ONE.mul(10000), zeroAddress)
+      ).to.be.reverted;
+    });
+
+    it("Should not allow to withdraw by user", async function () {
+      const revertMSG = "Ownable: caller is not the owner";
+
+      await pion.connect(deployer).mint(rewardManager.address, ONE.mul(100000));
+
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+
+      await expect(
+        rewardManager
+          .connect(claimer1)
+          .withdraw(pion.address, ONE.mul(10000), deployer.address)
+      ).to.be.revertedWith(revertMSG);
+
+      expect(await pion.balanceOf(rewardManager.address)).to.be.equal(
+        ONE.mul(100000)
+      );
+
+      expect(await pion.balanceOf(deployer.address)).to.be.equal(0);
+    });
+  });
+
+  describe("Set signer", function () {
+    it("Should allow the owner to set signer", async function () {
+      await expect(
+        rewardManager
+          .connect(deployer)
+          .setSigner(claimer1.address)
+      ).not.to.be.reverted;
+
+      expect((await rewardManager.functions.signer()).at(0)).to.be.equal(
+        claimer1.address
+      );
+    });
+
+    it("Should not allow the user to set signer", async function () {
+      await expect(
+        rewardManager
+          .connect(claimer1)
+          .setSigner(claimer1.address)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+
+      expect((await rewardManager.functions.signer()).at(0)).to.be.equal(
+        rewardRole
+      );
+    });
+  });
 });
