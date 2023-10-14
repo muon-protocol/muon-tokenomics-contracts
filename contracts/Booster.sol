@@ -156,17 +156,22 @@ contract Booster is Initializable, AccessControlUpgradeable {
         }
     }
 
-    /// @notice Set the treasury address
+    /// @notice Sets the treasury address
     /// @param _treasury The new treasury address
     function setTreasury(address _treasury) external onlyRole(DAO_ROLE) {
         require(_treasury != address(0), "0x0 treasury");
         treasury = _treasury;
     }
 
-    /// @notice Set the boostValue
+    /// @notice Sets the boostValue
     /// @param _value The new boost value
     function setBoostValue(uint256 _value) external onlyRole(ADMIN_ROLE) {
         boostValue = _value;
+    }
+
+    function setTokenInfo(IERC20 _usdc, IUniswapV2Pair _pair) external onlyRole(ADMIN_ROLE) {
+        usdcToken = _usdc;
+        uniswapV2Pair = _pair;
     }
 
     function getBoostableAmount(
