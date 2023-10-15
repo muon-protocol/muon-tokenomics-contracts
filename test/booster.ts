@@ -6,7 +6,6 @@ import {
   deployMockContract,
   MockContract,
 } from "@ethereum-waffle/mock-contract";
-import UNISWAP_V2_ROUTER_ABI from "@uniswap/v2-periphery/build/UniswapV2Router02.json";
 import UNISWAP_V2_PAIR_ABI from "@uniswap/v2-core/build/UniswapV2Pair.json";
 
 import { PIONtest, BondedPION, Booster, TestToken } from "../typechain-types";
@@ -84,7 +83,7 @@ describe("Booster", function () {
     usdc = (await ethers.deployContract("TestToken")) as TestToken;
 
     await usdc.connect(staker1).mint(staker1.address, ONE.mul(800));
-    await usdc.connect(staker2).mint(staker2.address, ONE.mul(200));
+    await usdc.connect(staker2).mint(staker2.address, ONE.mul(300));
 
     uniswapV2Pair = await deployMockContract(deployer, UNISWAP_V2_PAIR_ABI.abi);
 
@@ -221,7 +220,10 @@ describe("Booster", function () {
       const muonAmount = ONE.mul(100).mul(signedPrice).div(ONE)
       const boostedBalance = muonAmount.mul(boostValue).div(ONE)
       const newLockAmount = boostedBalance.add(ONE.mul(100))
-      const boostableAmount = newLockAmount.sub(muonAmount.add(boostedBalance))
+      let boostableAmount = ONE.mul(0)
+      if(muonAmount.add(boostedBalance) < newLockAmount){
+        boostableAmount = newLockAmount.sub(muonAmount.add(boostedBalance))
+      }
 
       expect(await booster.getBoostableAmount(nftId1)).eq(
         boostableAmount
@@ -239,12 +241,14 @@ describe("Booster", function () {
       expect(
         await bondedPion.getLockedOf(nftId1, [pion.address])
       ).to.deep.equal([ONE.mul(100).add(newLockAmount)]);
-      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100).add(boostableAmount));
+      expect(await booster.getBoostableAmount(nftId1)).eq(ONE.mul(100).add(
+        newLockAmount).sub(muonAmount.add(boostedBalance))
+      );
     });
   });
-  return
   describe("Create and Boost", async function () {
     it("Should create and boost", async function () {
+      let oracleData = await getDummySig(staker2.address);
       await usdc.connect(deployer).mint(staker2.address, ONE.mul(100));
       await pion.connect(deployer).mint(staker2.address, ONE.mul(100));
 
@@ -256,24 +260,28 @@ describe("Booster", function () {
       const nftId = await booster
         .connect(staker2)
         .callStatic.createAndBoost(ONE.mul(100), ONE.mul(100),
-          ONE.mul(1),
-          Math.floor(new Date().getTime() / 1000).toString(),
-          "0x00"
+          oracleData.amount,
+          oracleData.timestamp,
+          oracleData.signature
         );
       await expect(
         booster.connect(staker2).createAndBoost(ONE.mul(100), ONE.mul(100),
-          ONE.mul(1),
-          Math.floor(new Date().getTime() / 1000).toString(),
-          "0x00"
+          oracleData.amount,
+          oracleData.timestamp,
+          oracleData.signature
         )
       ).not.to.be.reverted;
+
+      const signedPrice = BigNumber.from(oracleData.amount)
+      const muonAmount = ONE.mul(100).mul(signedPrice).div(ONE)
+      const boostedBalance = muonAmount.mul(boostValue).div(ONE)
 
       expect(nftId).eq(4);
       expect(await bondedPion.ownerOf(nftId)).eq(staker2.address);
       expect(await bondedPion.getLockedOf(nftId, [pion.address])).to.deep.equal(
-        [ONE.mul(300)]
+        [ONE.mul(100).add(boostedBalance)]
       );
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
+      expect(await usdc.balanceOf(treasury.address)).eq(ONE.mul(100));
 
       // bosted pion should be burned
       expect(await pion.totalSupply()).eq(pionTotalSupply.sub(ONE.mul(100)));
@@ -312,40 +320,41 @@ describe("Booster", function () {
     });
   });
 
-  describe("Admin operations", async function () {
-    it("Should allow the ADMIN withdraw the PION tokens", async function () {
+  describe("Owner operations", async function () {
+    it("Should allow the owner withdraw the PION tokens", async function () {
+      await pion.connect(deployer).mint(booster.address, ONE.mul(100000));
       expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000));
-      expect(await pion.balanceOf(admin.address)).eq(0);
+      expect(await pion.balanceOf(deployer.address)).eq(0);
 
       await expect(
         booster
-          .connect(admin)
-          .adminWithdraw(ONE.mul(1000), admin.address, pion.address)
+          .connect(deployer)
+          .adminWithdraw(ONE.mul(1000), deployer.address, pion.address)
       ).to.not.be.reverted;
 
       expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000 - 1000));
-      expect(await pion.balanceOf(admin.address)).eq(ONE.mul(1000));
+      expect(await pion.balanceOf(deployer.address)).eq(ONE.mul(1000));
     });
 
-    it("Should allow the ADMIN withdraw and send to address 0", async function () {
+    it("Should not allow the owner withdraw and send to address 0", async function () {
       const zeroAddress = ethers.constants.AddressZero;
-
+      await pion.connect(deployer).mint(booster.address, ONE.mul(100000));
       expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000));
-      expect(await pion.balanceOf(admin.address)).eq(0);
+      expect(await pion.balanceOf(deployer.address)).eq(0);
 
       await expect(
         booster
-          .connect(admin)
+          .connect(deployer)
           .adminWithdraw(ONE.mul(70), zeroAddress, pion.address)
       ).to.be.reverted;
     });
 
-    it("Should not allow NON-ADMIN withdraw the PION tokens", async function () {
+    it("Should not allow NON-OWNER withdraw the PION tokens", async function () {
       await pion.connect(deployer).mint(booster.address, ONE.mul(100000));
       expect(await pion.balanceOf(booster.address)).eq(ONE.mul(100000));
       expect(await pion.balanceOf(user.address)).eq(0);
 
-      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${await booster.ADMIN_ROLE()}`
+      const revertMSG = "Ownable: caller is not the owner"
 
       await expect(
         booster
@@ -357,15 +366,15 @@ describe("Booster", function () {
       expect(await pion.balanceOf(user.address)).eq(0);
     });
 
-    it("Should allow the ADMIN set boostValue", async function () {
+    it("Should allow the owner set boostValue", async function () {
       expect(await booster.boostValue()).eq(ONE.mul(2));
 
-      await booster.connect(admin).setBoostValue(ONE.mul(3));
+      await booster.connect(deployer).setBoostValue(ONE.mul(3));
 
       expect(await booster.boostValue()).eq(ONE.mul(3));
     });
 
-    it("Should not allow the NON-ADMIN set boostValue", async function () {
+    it("Should not allow the NON-OWNER set boostValue", async function () {
       expect(await booster.boostValue()).eq(ONE.mul(2));
 
       await expect(booster.connect(user).setBoostValue(ONE.mul(3))).to.be
@@ -373,34 +382,29 @@ describe("Booster", function () {
 
       expect(await booster.boostValue()).eq(ONE.mul(2));
     });
-  });
 
-  describe("DAO operations", async function () {
-    it("Should allow the DAO set treasury", async function () {
+    it("Should allow the owner set treasury", async function () {
       expect(await booster.treasury()).eq(treasury.address);
 
       let newTreasury: SignerWithAddress;
       [newTreasury] = await ethers.getSigners();
 
-      await booster.connect(daoRole).setTreasury(newTreasury.address);
+      await booster.connect(deployer).setTreasury(newTreasury.address);
 
       expect(await booster.treasury()).eq(newTreasury.address);
     });
 
-    it("Should nt allow the DAO set treasury to address 0", async function () {
+    it("Should not allow the owner set treasury to address 0", async function () {
       const zeroAddress = ethers.constants.AddressZero;
 
       expect(await booster.treasury()).eq(treasury.address);
 
-      let newTreasury: SignerWithAddress;
-      [newTreasury] = await ethers.getSigners();
-
       await expect(
-        booster.connect(daoRole).setTreasury(zeroAddress)
+        booster.connect(deployer).setTreasury(zeroAddress)
       ).to.be.revertedWith("0x0 treasury");
     });
 
-    it("Should not allow the NON-DAO set treasury", async function () {
+    it("Should not allow the NON-OWNER set treasury", async function () {
       expect(await booster.treasury()).eq(treasury.address);
 
       let newTreasury: SignerWithAddress;
@@ -420,32 +424,61 @@ describe("Booster", function () {
       ).to.deep.equal([ONE.mul(100)]);
 
       expect(
-        await bondedPion.getLockedOf(nftId2, [pion.address])
+        await bondedPion.getLockedOf(nftId3, [pion.address])
       ).to.deep.equal([ONE.mul(200)]);
 
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(0));
+      expect(await usdc.balanceOf(treasury.address)).eq(ONE.mul(0));
+      
+      let oracleData = await getDummySig(staker1.address);
+      await booster.connect(deployer).setSignatureValidityPeriod(1000)
+      await booster.connect(staker1).boost(nftId1, ONE.mul(100), 
+        oracleData.amount,
+        oracleData.timestamp,
+        oracleData.signature
+      );
 
-      await booster.connect(staker1).boost(nftId1, ONE.mul(100));
+      const signedPrice = BigNumber.from(oracleData.amount)
+      let muonAmount = ONE.mul(100).mul(signedPrice).div(ONE)
+      let boostedBalance = muonAmount.mul(boostValue).div(ONE)
+      let newLockAmount = boostedBalance.add(ONE.mul(100))
+      let boostableAmount = ONE.mul(0)
+      if(muonAmount.add(boostedBalance) < newLockAmount){
+        boostableAmount = newLockAmount.sub(muonAmount.add(boostedBalance))
+      }
 
       expect(
         await bondedPion.getLockedOf(nftId1, [pion.address])
-      ).to.deep.equal([ONE.mul(300)]);
-      expect(await bondedPion.boostedBalance(nftId1)).eq(ONE.mul(300));
-      expect(await booster.getBoostableAmount(nftId1)).eq(0);
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(100));
+      ).to.deep.equal([newLockAmount]);
+      const boostedBalanceNFT1 = muonAmount.add(boostedBalance)
+      expect(await bondedPion.boostedBalance(nftId1)).eq(boostedBalanceNFT1);
+      expect(await booster.getBoostableAmount(nftId1)).eq(boostableAmount);
+      expect(await usdc.balanceOf(treasury.address)).eq(ONE.mul(100));
 
-      await booster.connect(staker1).boost(nftId3, ONE.mul(150));
+      await booster.connect(staker1).boost(nftId3, ONE.mul(150), 
+        oracleData.amount,
+        oracleData.timestamp,
+        oracleData.signature
+      );
+
+      muonAmount = ONE.mul(150).mul(signedPrice).div(ONE)
+      boostedBalance = muonAmount.mul(boostValue).div(ONE)
+      newLockAmount = boostedBalance.add(ONE.mul(200))
+      boostableAmount = ONE.mul(0)
+      if(muonAmount.add(boostedBalance) < newLockAmount){
+        boostableAmount = newLockAmount.sub(muonAmount.add(boostedBalance))
+      }
 
       expect(
         await bondedPion.getLockedOf(nftId3, [pion.address])
-      ).to.deep.equal([ONE.mul(500)]);
-      expect(await bondedPion.boostedBalance(nftId3)).eq(ONE.mul(450));
-      expect(await booster.getBoostableAmount(nftId3)).eq(ONE.mul(50));
-      expect(await usdc.balanceOf(booster.address)).eq(ONE.mul(250));
+      ).to.deep.equal([newLockAmount]);
+      const boostedBalanceNFT2 = muonAmount.add(boostedBalance)
+      expect(await bondedPion.boostedBalance(nftId3)).eq(boostedBalanceNFT2);
+      expect(await booster.getBoostableAmount(nftId3)).eq(boostableAmount);
+      expect(await usdc.balanceOf(treasury.address)).eq(ONE.mul(250));
 
       await bondedPion.connect(staker1).merge(nftId1, nftId3);
 
-      expect(await bondedPion.boostedBalance(nftId3)).eq(ONE.mul(750));
+      expect(await bondedPion.boostedBalance(nftId3)).eq(boostedBalanceNFT1.add(boostedBalanceNFT2));
     });
   });
 });
