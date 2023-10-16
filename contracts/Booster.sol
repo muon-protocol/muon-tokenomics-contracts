@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -14,7 +13,7 @@ contract Booster is Ownable {
     using ECDSA for bytes32;
 
     IToken public muonToken;
-    IERC20 public usdcToken;
+    IToken public usdcToken;
 
     IBondedToken public bondedToken;
 
@@ -49,7 +48,7 @@ contract Booster is Ownable {
         address _signer
     ){
         muonToken = IToken(muonTokenAddress);
-        usdcToken = IERC20(usdcAddress);
+        usdcToken = IToken(usdcAddress);
         bondedToken = IBondedToken(bondedTokenAddress);
 
         uniswapV2Pair = IUniswapV2Pair(_uniswapV2Pair);
@@ -84,7 +83,9 @@ contract Booster is Ownable {
             "transferFrom error"
         );
 
-        (uint112 reserve0, uint112 reserve1, ) = uniswapV2Pair.getReserves();
+        (uint256 reserve0, uint256 reserve1, ) = uniswapV2Pair.getReserves();
+        reserve0 =  reserve0*(10**(18 - IToken(uniswapV2Pair.token0()).decimals()));
+        reserve1 =  reserve1*(10**(18 - IToken(uniswapV2Pair.token1()).decimals()));
 
         uint256 muonAmountOnchain;
         if (uniswapV2Pair.token0() == address(usdcToken)) {
@@ -93,7 +94,8 @@ contract Booster is Ownable {
             muonAmountOnchain = (amount * reserve0) / reserve1;
         }
 
-        uint256 muonAmount = amount * signedPrice / 1e18;
+        muonAmountOnchain = muonAmountOnchain * (10**(18-usdcToken.decimals()));
+        uint256 muonAmount = amount * signedPrice / (10**usdcToken.decimals());
 
         require(validateAmount(muonAmountOnchain, muonAmount), 
             "Invalid oracle price");
@@ -154,7 +156,7 @@ contract Booster is Ownable {
         if (_tokenAddr == address(0)) {
             payable(_to).transfer(amount);
         } else {
-            IERC20(_tokenAddr).transfer(_to, amount);
+            IToken(_tokenAddr).transfer(_to, amount);
         }
     }
 
@@ -171,7 +173,7 @@ contract Booster is Ownable {
         boostValue = _value;
     }
 
-    function setTokenInfo(IERC20 _usdc, IUniswapV2Pair _pair) external onlyOwner {
+    function setTokenInfo(IToken _usdc, IUniswapV2Pair _pair) external onlyOwner {
         usdcToken = _usdc;
         uniswapV2Pair = _pair;
     }

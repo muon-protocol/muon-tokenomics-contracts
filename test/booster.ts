@@ -117,6 +117,7 @@ describe("Booster", function () {
       "1695796719"
     );
     await uniswapV2Pair.mock.token0.returns(usdc.address);
+    await uniswapV2Pair.mock.token1.returns(pion.address);
   });
 
   describe("Boost", async function () {
