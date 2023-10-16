@@ -4,6 +4,8 @@ pragma solidity 0.8.19;
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; 
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IToken.sol";
 import "./interfaces/IBondedToken.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -11,6 +13,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract Booster is Ownable {
     using ECDSA for bytes32;
+    using SafeERC20 for IERC20;
 
     IToken public muonToken;
     IToken public usdcToken;
@@ -78,9 +81,12 @@ contract Booster is Ownable {
         address recoveredSigner = messageHash.recover(signature);
         require(recoveredSigner == signer, "Invalid signature.");
 
+        uint256 treasuryBalance = usdcToken.balanceOf(treasury);
+        IERC20(address(usdcToken)).safeTransferFrom(msg.sender, treasury, amount);
+        uint256 receivedAmount = usdcToken.balanceOf(treasury) - treasuryBalance;
         require(
-            usdcToken.transferFrom(msg.sender, treasury, amount),
-            "transferFrom error"
+            amount == receivedAmount,
+            "receivedAmount != amount"
         );
 
         (uint256 reserve0, uint256 reserve1, ) = uniswapV2Pair.getReserves();
