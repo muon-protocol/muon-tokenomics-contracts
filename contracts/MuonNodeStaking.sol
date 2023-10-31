@@ -102,6 +102,7 @@ contract MuonNodeStaking is
         bool isPaused
     );
     event VerifierUpdated(address verifierAddress);
+    event MuonTokenUpdated(address muonAddress);
 
     // ======== Modifiers ========
     /**
@@ -600,6 +601,18 @@ contract MuonNodeStaking is
 
         functionPauseStatus[functionName] = pauseStatus;
         emit FunctionPauseStatusChanged(functionName, pauseStatus);
+    }
+
+    /**
+     * @dev Set new Muon token.
+     * Only callable by the DAO_ROLE.
+     * @param newMuonToken The address of the new Muon token.
+     */
+    function setMuonToken(
+        address newMuonToken
+    ) external onlyRole(DAO_ROLE) {
+        muonToken = IERC20Upgradeable(newMuonToken);
+        emit MuonTokenUpdated(newMuonToken);
     }
 
     /**

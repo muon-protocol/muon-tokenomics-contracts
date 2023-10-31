@@ -78,6 +78,7 @@ contract BondedToken is
     event PublicTransferStatusUpdated(bool publicTransferStatus);
 
     event TreasuryUpdated(address treasury);
+    event baseTokenUpdated(address baseToken);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -156,6 +157,16 @@ contract BondedToken is
         require(_treasury != address(0), "Zero Address");
         treasury = _treasury;
         emit TreasuryUpdated(_treasury);
+    }
+
+    /// @notice sets base token address
+    /// @param _baseToken new base token address
+    function setBaseToken(address _baseToken) external onlyOwner {
+        require(_baseToken != address(0), "Zero Address");
+        baseToken = _baseToken;
+        tokensWhitelist.push(_baseToken);
+        isTokenWhitelisted[_baseToken] = true;
+        emit baseTokenUpdated(_baseToken);
     }
 
     /// @notice mints a new NFT for requested address and locks tokens for that NFT
@@ -240,8 +251,15 @@ contract BondedToken is
     ) external view returns (uint256[] memory amounts) {
         uint256 tokensLength = tokens.length;
         amounts = new uint256[](tokensLength);
+        address oldToken = 0xF81dF93aB37D5b1396139F294418B2741143b280;
         for (uint256 i; i < tokensLength; ++i) {
-            amounts[i] = lockedOf[tokenId][tokens[i]];
+            if(tokens[i] == oldToken) {
+                amounts[i] = 0;
+            } else if(tokens[i] == baseToken) {
+                amounts[i] = lockedOf[tokenId][baseToken] + lockedOf[tokenId][oldToken];
+            } else {
+                amounts[i] = lockedOf[tokenId][tokens[i]];
+            }
         }
     }
 
@@ -297,6 +315,10 @@ contract BondedToken is
         uint256 receivedAmount;
         for (uint256 i; i < len; ++i) {
             require(isTokenWhitelisted[tokens[i]], "Not Whitelisted");
+            require(
+                tokens[i] != 0xF81dF93aB37D5b1396139F294418B2741143b280, 
+                "Not allowed token"
+            );
             require(amounts[i] > 0, "Cannot Lock Zero Amount");
 
             if (tokens[i] == baseToken) {
