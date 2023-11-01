@@ -11,6 +11,9 @@ contract PIONHelper is Ownable {
     IToken public muonToken;
     address public signer;
 
+    // wallet => claimed amount
+    mapping(address => uint256) public claimed;
+
     event TokenClaimed(address indexed user, uint256 amount);
 
     constructor(address _muonTokenAddress, address _signer) {
@@ -24,8 +27,10 @@ contract PIONHelper is Ownable {
         address recoveredSigner = messageHash.recover(signature);
 
         require(recoveredSigner == signer, "Invalid signature");
+        require(amount > claimed[msg.sender], "Invalid amount");
 
-        IToken(muonToken).transfer(msg.sender, amount);
+        claimed[msg.sender] = amount;
+        IToken(muonToken).transfer(msg.sender, amount - claimed[msg.sender]);
 
         emit TokenClaimed(msg.sender, amount);
     }
