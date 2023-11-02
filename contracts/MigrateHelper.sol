@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IToken.sol";
 
-contract PIONHelper is Ownable {
+contract MigrateHelper is Ownable {
     using ECDSA for bytes32;
 
     IToken public muonToken;
@@ -21,7 +21,7 @@ contract PIONHelper is Ownable {
         signer = _signer;
     }
 
-    function claimToken(uint256 amount, bytes memory signature) external {
+    function claim(uint256 amount, bytes memory signature) external {
         bytes32 messageHash = keccak256(abi.encodePacked(msg.sender, amount));
         messageHash = messageHash.toEthSignedMessageHash();
         address recoveredSigner = messageHash.recover(signature);
@@ -39,7 +39,11 @@ contract PIONHelper is Ownable {
         signer = _signer;
     }
 
-    function withdraw(
+    function setMuonToken(address _token) external onlyOwner {
+        muonToken = IToken(_token);
+    }
+
+    function ownerWithdraw(
         address tokenAddress,
         uint256 amount,
         address to
