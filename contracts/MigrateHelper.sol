@@ -9,6 +9,8 @@ contract MigrateHelper is Ownable {
     using ECDSA for bytes32;
 
     IToken public muonToken;
+    IToken public oldToken;
+
     address public signer;
 
     // wallet => claimed amount
@@ -16,8 +18,9 @@ contract MigrateHelper is Ownable {
 
     event TokenClaimed(address indexed user, uint256 amount);
 
-    constructor(address _muonTokenAddress, address _signer) {
+    constructor(address _muonTokenAddress, address _oldToken, address _signer) {
         muonToken = IToken(_muonTokenAddress);
+        oldToken = IToken(_oldToken);
         signer = _signer;
     }
 
@@ -29,10 +32,13 @@ contract MigrateHelper is Ownable {
         require(recoveredSigner == signer, "Invalid signature");
         require(amount > claimed[msg.sender], "Invalid amount");
 
-        claimed[msg.sender] = amount;
-        IToken(muonToken).transfer(msg.sender, amount - claimed[msg.sender]);
+        uint256 pendingAmount = amount - claimed[msg.sender];
+        oldToken.burnFrom(msg.sender, pendingAmount);
 
-        emit TokenClaimed(msg.sender, amount);
+        claimed[msg.sender] = amount;
+        IToken(muonToken).transfer(msg.sender, pendingAmount);
+
+        emit TokenClaimed(msg.sender, pendingAmount);
     }
 
     function setSigner(address _signer) external onlyOwner {
