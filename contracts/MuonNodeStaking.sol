@@ -141,14 +141,26 @@ contract MuonNodeStaking is
         address _nodeManagerAddress,
         uint256 _muonAppId,
         PublicKey memory _muonPublicKey,
-        address _bondedTokenAddress
+        address _bondedTokenAddress,
+        uint256 _totalStaked,
+        uint256 _notPaidRewards,
+        uint256 _periodFinish,
+        uint256 _rewardRate,
+        uint256 _lastUpdateTime,
+        uint256 _rewardPerTokenStored
     ) external initializer {
         __MuonNodeStakingUpgradeable_init(
             _muonTokenAddress,
             _nodeManagerAddress,
             _muonAppId,
             _muonPublicKey,
-            _bondedTokenAddress
+            _bondedTokenAddress,
+            _totalStaked,
+            _notPaidRewards,
+            _periodFinish,
+            _rewardRate,
+            _lastUpdateTime,
+            _rewardPerTokenStored
         );
     }
 
@@ -157,7 +169,13 @@ contract MuonNodeStaking is
         address _nodeManagerAddress,
         uint256 _muonAppId,
         PublicKey memory _muonPublicKey,
-        address _bondedTokenAddress
+        address _bondedTokenAddress,
+        uint256 _totalStaked,
+        uint256 _notPaidRewards,
+        uint256 _periodFinish,
+        uint256 _rewardRate,
+        uint256 _lastUpdateTime,
+        uint256 _rewardPerTokenStored
     ) internal initializer {
         __AccessControl_init();
 
@@ -176,6 +194,13 @@ contract MuonNodeStaking is
         validatePubKey(_muonPublicKey.x);
         muonPublicKey = _muonPublicKey;
         muonAppId = _muonAppId;
+
+        totalStaked = _totalStaked;
+        notPaidRewards = _notPaidRewards;
+        periodFinish = _periodFinish;
+        rewardRate = _rewardRate;
+        lastUpdateTime = _lastUpdateTime;
+        rewardPerTokenStored = _rewardPerTokenStored;
     }
 
     function __MuonNodeStakingUpgradeable_init_unchained()
@@ -600,6 +625,32 @@ contract MuonNodeStaking is
 
         functionPauseStatus[functionName] = pauseStatus;
         emit FunctionPauseStatusChanged(functionName, pauseStatus);
+    }
+
+    function migrate(
+        address[] calldata _user,
+        uint256[] calldata _balance,
+        uint256[] calldata _paidReward,
+        uint256[] calldata _paidRewardPerToken,
+        uint256[] calldata _pendingRewards,
+        uint256[] calldata _tokenId,
+        address[] calldata _nodeAddress,
+        string[] calldata _peerId
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        uint256 length = _user.length;
+
+        for(uint256 i = 0; i < length; i++) {
+            address staker = _user[i];
+            User storage user = users[staker];
+            user.balance = _balance[i];
+            user.paidReward = _paidReward[i];
+            user.paidRewardPerToken = _paidRewardPerToken[i];
+            user.pendingRewards = _pendingRewards[i];
+            user.tokenId = _tokenId[i];
+
+            emit MuonNodeAdded(_nodeAddress[i], staker, _peerId[i]);
+            emit Staked(staker, _balance[i]);
+        }
     }
 
     /**

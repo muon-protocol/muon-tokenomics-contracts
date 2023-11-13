@@ -70,19 +70,25 @@ contract MuonNodeManager is
     /**
      * @dev Initializes the contract.
      */
-    function initialize() external initializer {
-        __MuonNodeManagerUpgradeable_init();
+    function initialize(
+        uint64 _lastNodeId, 
+        uint256 _lastUpdateTime
+    ) external initializer {
+        __MuonNodeManagerUpgradeable_init(_lastNodeId, _lastUpdateTime);
     }
 
-    function __MuonNodeManagerUpgradeable_init() internal initializer {
+    function __MuonNodeManagerUpgradeable_init(
+        uint64 _lastNodeId, 
+        uint256 _lastUpdateTime
+    ) internal initializer {
         __AccessControl_init();
 
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
         _setupRole(DAO_ROLE, msg.sender);
 
-        lastNodeId = 0;
-        lastUpdateTime = block.timestamp;
+        lastNodeId = _lastNodeId;
+        lastUpdateTime = _lastUpdateTime;
     }
 
     function __MuonNodeManagerUpgradeable_init_unchained()
@@ -367,6 +373,53 @@ contract MuonNodeManager is
             configValues[i] = configs[configKeys[i]];
         }
         return (lastUpdateTime, lastNodeId, configValues);
+    }
+
+    function migrate(
+        uint64[] calldata _nodeId,
+        address[] calldata _nodeAddress,
+        address[] calldata _stakerAddress,
+        string[] calldata _peerId,
+        bool[] calldata _active,
+        uint8[] calldata _tier
+    ) external onlyRole(ADMIN_ROLE) {
+        uint256 length = _nodeId.length;
+
+        for(uint256 i = 0; i < length; i++) {
+            uint64 nodeId = _nodeId[i];
+            address nodeAddress = _nodeAddress[i];
+            address stakerAddress = _stakerAddress[i];
+
+            Node storage node = nodes[nodeId];
+
+            node.id = nodeId;
+            node.nodeAddress = nodeAddress;
+            node.stakerAddress = stakerAddress;
+            node.peerId = _peerId[i];
+            node.active = _active[i];
+            node.tier = _tier[i];
+
+            nodeAddressIds[nodeAddress] = nodeId;
+            stakerAddressIds[stakerAddress] = nodeId;
+
+            emit NodeAdded(nodeId, node);
+            emit TierSet(nodeId, node.tier);
+        }
+    }
+
+    function migrateNodeTimes(
+        uint64[] calldata _nodeId,
+        uint256[] calldata _startTime,
+        uint256[] calldata _lastEditTime
+    ) external onlyRole(ADMIN_ROLE) {
+         uint256 length = _nodeId.length;
+
+        for(uint256 i = 0; i < length; i++) {
+            Node storage node = nodes[_nodeId[i]];
+
+            node.startTime = _startTime[i];
+            node.lastEditTime = _lastEditTime[i];
+        }
     }
 
     /**
