@@ -410,6 +410,7 @@ contract MuonNodeManager is
     function migrateNodeTimes(
         uint64[] calldata _nodeId,
         uint256[] calldata _startTime,
+        uint256[] calldata _endTime,
         uint256[] calldata _lastEditTime
     ) external onlyRole(ADMIN_ROLE) {
          uint256 length = _nodeId.length;
@@ -418,6 +419,7 @@ contract MuonNodeManager is
             Node storage node = nodes[_nodeId[i]];
 
             node.startTime = _startTime[i];
+            node.endTime = _endTime[i];
             node.lastEditTime = _lastEditTime[i];
         }
     }
