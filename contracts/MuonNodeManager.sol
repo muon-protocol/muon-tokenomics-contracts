@@ -398,7 +398,6 @@ contract MuonNodeManager is
             node.active = true;
             node.tier = _tier[i];
             node.startTime = block.timestamp;
-            node.endTime = block.timestamp;
             node.lastEditTime = block.timestamp;
 
 
