@@ -380,7 +380,6 @@ contract MuonNodeManager is
         address[] calldata _nodeAddress,
         address[] calldata _stakerAddress,
         string[] calldata _peerId,
-        bool[] calldata _active,
         uint8[] calldata _tier
     ) external onlyRole(ADMIN_ROLE) {
         uint256 length = _nodeId.length;
@@ -396,8 +395,12 @@ contract MuonNodeManager is
             node.nodeAddress = nodeAddress;
             node.stakerAddress = stakerAddress;
             node.peerId = _peerId[i];
-            node.active = _active[i];
+            node.active = true;
             node.tier = _tier[i];
+            node.startTime = block.timestamp;
+            node.endTime = block.timestamp;
+            node.lastEditTime = block.timestamp;
+
 
             nodeAddressIds[nodeAddress] = nodeId;
             stakerAddressIds[stakerAddress] = nodeId;
@@ -407,20 +410,18 @@ contract MuonNodeManager is
         }
     }
 
-    function migrateNodeTimes(
-        uint64[] calldata _nodeId,
-        uint256[] calldata _startTime,
-        uint256[] calldata _endTime,
-        uint256[] calldata _lastEditTime
+    function exitBatch(
+        uint64[] calldata _nodeId
     ) external onlyRole(ADMIN_ROLE) {
          uint256 length = _nodeId.length;
 
         for(uint256 i = 0; i < length; i++) {
             Node storage node = nodes[_nodeId[i]];
 
-            node.startTime = _startTime[i];
-            node.endTime = _endTime[i];
-            node.lastEditTime = _lastEditTime[i];
+            node.active = false;
+            node.endTime = block.timestamp;
+
+            emit NodeDeactivated(_nodeId[i]);
         }
     }
 
