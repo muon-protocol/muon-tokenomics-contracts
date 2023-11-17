@@ -34,11 +34,13 @@ contract MuonRewardManager is Ownable{
     constructor(
         address _muonTokenAddress,
         address _bondedTokenAddress,
-        address _signer
+        address _signer,
+        uint256 _totalReward
     ) {
         muonToken = IToken(_muonTokenAddress);
         bondedToken = IBondedToken(_bondedTokenAddress);
         signer = _signer;
+        totalReward = _totalReward;
     }
 
     function claimReward(uint256 rewardAmount, bytes memory signature)
@@ -93,6 +95,25 @@ contract MuonRewardManager is Ownable{
             payable(to).transfer(amount);
         } else {
             IToken(tokenAddress).transfer(to, amount);
+        }
+    }
+
+    function migrate(
+        address[] calldata _user,
+        uint256[] calldata _rewardAmount,
+        uint256[] calldata _tokenId
+    ) external onlyOwner {
+        uint256 length = _user.length;
+
+        for(uint256 i = 0; i < length; i++) {
+            address user = _user[i];
+            uint256 rewardAmount = _rewardAmount[i];
+            uint256 tokenId = _tokenId[i];
+
+            users[user].rewardAmount = rewardAmount;
+            users[user].tokenId = tokenId;
+
+            emit RewardClaimed(user, rewardAmount, tokenId);
         }
     }
 }
