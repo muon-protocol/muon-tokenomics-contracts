@@ -98,6 +98,16 @@ contract Helper is Initializable, AccessControlUpgradeable {
         });
     }
 
+    /**
+     * @dev get bonPION balance for the staker address
+     * @param stakerAddress The address of the staker.
+     */
+    function balanceOf(address stakerAddress) external view returns (uint256) {
+        IMuonNodeStaking.User memory user = nodeStaking.users(stakerAddress);
+        return user.balance;
+    }
+
+
     function setNodeStaking(address muonNodeStakingAddress)
         external
         onlyRole(ADMIN_ROLE)
