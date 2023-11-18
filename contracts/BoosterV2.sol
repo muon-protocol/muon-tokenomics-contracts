@@ -40,10 +40,6 @@ contract BoosterV2 is Ownable {
         uint256 amount
     ) public {
         require(amount > 0, "0 amount");
-        require(
-            amount <= getBoostableAmount(nftId),
-            "> boostableAmount"
-        );
 
         IERC20(muonToken).safeTransferFrom(msg.sender, address(this), amount);
 
@@ -53,9 +49,6 @@ contract BoosterV2 is Ownable {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = (amount * boostValue) / 1e18;
 
-        bondedToken.addBoostedBalance(nftId, amounts[0]+amount);
-
-        
         IToken(muonToken).mint(address(this), amounts[0]);
         IToken(muonToken).approve(address(bondedToken), amounts[0]);
         
@@ -107,16 +100,5 @@ contract BoosterV2 is Ownable {
     /// @param _value The new boost value
     function setBoostValue(uint256 _value) external onlyOwner {
         boostValue = _value;
-    }
-
-    function getBoostableAmount(
-        uint256 nftId
-    ) public view returns(uint256){
-        address[] memory tokens = new address[](1);
-        tokens[0] = muonToken;
-        uint256 balance = bondedToken.getLockedOf(nftId, tokens)[0];
-        uint256 boostedBalance = bondedToken.boostedBalance(nftId);
-
-        return boostedBalance >= balance ? 0 : balance-boostedBalance;
     }
 }
