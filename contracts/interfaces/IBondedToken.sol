@@ -37,4 +37,9 @@ interface IBondedToken {
         uint256[] memory amounts,
         address to
     ) external returns (uint256 tokenId);
+
+    function mint(
+        address to
+    ) external returns (uint256 tokenId);
+
 }

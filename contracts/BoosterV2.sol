@@ -66,20 +66,9 @@ contract BoosterV2 is Ownable {
         uint256 muonAmount
     ) public returns(uint256){
         require(muonAmount > 0, "0 amount");
-
-        uint256 nftAmount = muonAmount/2;
-
-        IERC20(muonToken).safeTransferFrom(msg.sender, address(this), nftAmount);
-        address[] memory tokens = new address[](1);
-        tokens[0] = muonToken;
-
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = nftAmount;
-
-        IERC20(muonToken).approve(address(bondedToken), nftAmount);
-        uint256 nftId = bondedToken.mintAndLock(tokens, amounts, msg.sender);
+        uint256 nftId = bondedToken.mint(msg.sender);
         
-        boost(nftId, nftAmount);
+        boost(nftId, muonAmount);
         return nftId;
     }
 
