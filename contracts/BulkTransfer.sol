@@ -18,12 +18,12 @@ contract BulkTransfer is Ownable {
     }
 
     function bulkTransfer(
-        address[] memory addresses,
-        uint256[] memory amounts
+        address[] calldata addresses,
+        uint256[] calldata amounts
     ) public onlyOwner {
         require(addresses.length == amounts.length, "len mismatch");
         for(uint256 i=0; i<addresses.length; i++){
-            IERC20(muonToken).transfer(addresses[i], amounts[i]);
+            IERC20(muonToken).safeTransfer(addresses[i], amounts[i]);
         }
     }
 
