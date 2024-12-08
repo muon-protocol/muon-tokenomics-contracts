@@ -122,12 +122,14 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
 
     function removeUser(uint256 index) external onlyOwner {
         address _user = allUsers[index];
-        allUsers[index] = allUsers[allUsers.length - 1];
+        address lastUser = allUsers[allUsers.length - 1];
+        allUsers[index] = lastUser;
         allUsers.pop();
         balances[_user] = 0;
         startDates[_user] = 0;
         restake[_user] = false;
         userIndexes[_user] = 0;
+        userIndexes[lastUser] = index;
     }
 
     function adminWithdraw(
