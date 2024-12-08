@@ -20,4 +20,8 @@ interface IMuonNodeStaking {
     function rewardPerToken() external view returns (uint256);
 
     function setMuonNodeTier(address stakerAddress, uint8 tier) external;
+
+    function valueOfBondedToken(
+        uint256 tokenId
+    ) external view returns (uint256); 
 }
