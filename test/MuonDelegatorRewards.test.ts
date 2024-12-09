@@ -433,7 +433,7 @@ describe("MuonDelegatorRewards", function () {
         .connect(admin)
         .bulkImport(userAddresses, userBalances, userStartDates, userReStakes);
 
-      const users = await muonDelegatorRewards.getUsers(0, 3);
+      const users = await muonDelegatorRewards.getUsers(1, 4);
 
       const addresses = users[0];
       const balances = users[1];
