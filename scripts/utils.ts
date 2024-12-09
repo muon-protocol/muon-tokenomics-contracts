@@ -16,6 +16,8 @@ export async function deploy(treasury: string) {
   const bonPion = (await upgrades.deployProxy(bondedPION, [
     pion.address,
     treasury,
+    0,
+    0
   ])) as BondedPION;
 
   return {
