@@ -128,8 +128,8 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         balances[_user] = 0;
         startDates[_user] = 0;
         restake[_user] = false;
-        userIndexes[_user] = 0;
         userIndexes[lastUser] = index;
+        userIndexes[_user] = 0;
     }
 
     function adminWithdraw(
