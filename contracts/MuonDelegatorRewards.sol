@@ -230,6 +230,10 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         bonTokenId = bondedToken.mint(address(this));
     }
 
+    function fixUserIndex(address user, uint256 index) external onlyOwner {
+        userIndexes[user] = index;
+    }
+
     function calcAmounts(
         uint256 amount,
         uint256 time
