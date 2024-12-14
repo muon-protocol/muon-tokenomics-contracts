@@ -2,13 +2,13 @@ import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers, upgrades } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { 
-  MuonDelegatorRewards, 
-  PION, 
-  BondedPION, 
-  MuonNodeManager, 
-  MuonNodeStaking, 
-  SchnorrSECP256K1VerifierV2 
+import {
+  MuonDelegatorRewards,
+  PION,
+  BondedPION,
+  MuonNodeManager,
+  MuonNodeStaking,
+  SchnorrSECP256K1VerifierV2,
 } from "../typechain-types";
 import { describe, it, beforeEach } from "mocha";
 import { testDeployLocally } from "../scripts/utils";
@@ -26,6 +26,10 @@ describe("MuonDelegatorRewards", function () {
   let MINTER_ROLE: string;
   let nodeStaker: SignerWithAddress;
   let user: SignerWithAddress;
+  let user1: SignerWithAddress;
+  let user2: SignerWithAddress;
+  let user3: SignerWithAddress;
+  let user4: SignerWithAddress;
   let pionMinter: SignerWithAddress;
   const pionMintAmount = ethers.utils.parseEther("100000");
   const DelegateAmount = ethers.utils.parseEther("10");
@@ -37,59 +41,87 @@ describe("MuonDelegatorRewards", function () {
     parity: 1,
   };
 
+  const user1Balance = ethers.utils.parseEther("5");
+  const user2Balance = ethers.utils.parseEther("10");
+  const user3Balance = ethers.utils.parseEther("15");
+  const user4Balance = ethers.utils.parseEther("20");
+  const userAddresses: any[] = [];
+  const userBalances = [user1Balance, user2Balance, user3Balance, user4Balance];
+
+  const userStartDates = [1729666262, 1727074262, 1724395862, 1721717462];
+  const userReStakes = [false, false, true, true];
+
   before(async function () {
-    [admin, user, pionMinter, nodeStaker] = await ethers.getSigners();
+    [admin, user, pionMinter, nodeStaker, user1, user2, user3, user4] =
+      await ethers.getSigners();
+    userAddresses.push(
+      user1.address,
+      user2.address,
+      user3.address,
+      user4.address
+    );
   });
 
   beforeEach(async () => {
     const contracts = await loadFixture(testDeployLocally);
     pion = contracts.pion.connect(user);
     bonPion = contracts.bonPion.connect(user);
-    
+
     const MuonNodeManager = await ethers.getContractFactory("MuonNodeManager");
-    nodeManager = await upgrades.deployProxy(MuonNodeManager, [0, 0]) as MuonNodeManager;
+    nodeManager = (await upgrades.deployProxy(
+      MuonNodeManager,
+      [0, 0]
+    )) as MuonNodeManager;
     await nodeManager.deployed();
 
-    const SchnorrSECP256K1VerifierV2 = await ethers.getContractFactory("SchnorrSECP256K1VerifierV2");
+    const SchnorrSECP256K1VerifierV2 = await ethers.getContractFactory(
+      "SchnorrSECP256K1VerifierV2"
+    );
     verifier = await SchnorrSECP256K1VerifierV2.connect(admin).deploy();
     await verifier.deployed();
 
     const MuonNodeStaking = await ethers.getContractFactory("MuonNodeStaking");
-    nodeStaking = await upgrades.deployProxy(MuonNodeStaking, [
+    nodeStaking = (await upgrades.deployProxy(MuonNodeStaking, [
       pion.address,
       nodeManager.address,
       muonAppId,
       muonPublicKey,
       bonPion.address,
-      0, 0, 0, 0, 0, 0
-    ]) as MuonNodeStaking;
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+    ])) as MuonNodeStaking;
     await nodeStaking.deployed();
-
 
     await nodeStaking
       .connect(admin)
       .grantRole(await nodeStaking.DAO_ROLE(), admin.address);
 
-    await nodeStaking
-      .connect(admin)
-      .updateStakingTokens(
-        [pion.address],
-        [ONE]
-      );
+    await nodeStaking.connect(admin).updateStakingTokens([pion.address], [ONE]);
 
-    const MuonDelegatorRewards = await ethers.getContractFactory("MuonDelegatorRewards");
-    muonDelegatorRewards = await upgrades.deployProxy(MuonDelegatorRewards, 
-      [
-        pion.address, 
-        bonPion.address, 
-        0, 
-        nodeStaker.address
-      ]
-    ) as MuonDelegatorRewards;
+    const MuonDelegatorRewards = await ethers.getContractFactory(
+      "MuonDelegatorRewards"
+    );
+    muonDelegatorRewards = (await upgrades.deployProxy(MuonDelegatorRewards, [
+      pion.address,
+      bonPion.address,
+      0,
+      nodeStaker.address,
+    ])) as MuonDelegatorRewards;
     await muonDelegatorRewards.deployed();
 
-    await bonPion.connect(admin).grantRole(bonPion.TRANSFERABLE_ADDRESS_ROLE(), muonDelegatorRewards.address);
-    const delegationBonPION = await bonPion.callStatic.mint(muonDelegatorRewards.address);
+    await bonPion
+      .connect(admin)
+      .grantRole(
+        bonPion.TRANSFERABLE_ADDRESS_ROLE(),
+        muonDelegatorRewards.address
+      );
+    const delegationBonPION = await bonPion.callStatic.mint(
+      muonDelegatorRewards.address
+    );
     await bonPion.mint(muonDelegatorRewards.address);
 
     await muonDelegatorRewards.setNodeStaking(nodeStaking.address);
@@ -130,7 +162,7 @@ describe("MuonDelegatorRewards", function () {
       expect(initialNodeStakerBalance).to.be.equal(0);
 
       expect(await muonDelegatorRewards.balances(user.address)).to.be.equal(0);
-      expect((await nodeStaking.valueOfBondedToken(1))).to.eq(0);
+      expect(await nodeStaking.valueOfBondedToken(1)).to.eq(0);
 
       //Delegate Token
       await muonDelegatorRewards
@@ -143,7 +175,9 @@ describe("MuonDelegatorRewards", function () {
       expect(startDate).to.be.equal(delegateTime);
 
       expect(await pion.balanceOf(muonDelegatorRewards.address)).to.be.equal(0);
-      expect((await nodeStaking.valueOfBondedToken(1)).toString()).to.eq(DelegateAmount);
+      expect((await nodeStaking.valueOfBondedToken(1)).toString()).to.eq(
+        DelegateAmount
+      );
 
       expect(await pion.balanceOf(user.address)).to.be.equal(
         UserPionBalance.sub(DelegateAmount)
@@ -313,18 +347,24 @@ describe("MuonDelegatorRewards", function () {
       await pion.connect(user).mint(user.address, pionMintAmount);
       await pion.connect(user).mint(user.address, pionMintAmount);
       await pion.connect(user).approve(bonPion.address, pionMintAmount);
-      const tokenId = await bonPion
-      .callStatic
-      .mintAndLock([pion.address], [pionMintAmount], user.address);
+      const tokenId = await bonPion.callStatic.mintAndLock(
+        [pion.address],
+        [pionMintAmount],
+        user.address
+      );
       await bonPion
         .connect(user)
         .mintAndLock([pion.address], [pionMintAmount], user.address);
 
-      expect((await nodeStaking.valueOfBondedToken(1))).to.eq(0);
+      expect(await nodeStaking.valueOfBondedToken(1)).to.eq(0);
       const nftPower = await bonPion.getLockedOf(tokenId, [pion.address]);
 
-      expect((await nodeStaking.valueOfBondedToken(tokenId)).toString()).to.eq(nftPower.toString());
-      expect(await bonPion.ownerOf(1)).to.be.equal(muonDelegatorRewards.address);
+      expect((await nodeStaking.valueOfBondedToken(tokenId)).toString()).to.eq(
+        nftPower.toString()
+      );
+      expect(await bonPion.ownerOf(1)).to.be.equal(
+        muonDelegatorRewards.address
+      );
       expect(await bonPion.ownerOf(tokenId)).to.be.equal(user.address);
 
       // await expect(
@@ -361,11 +401,13 @@ describe("MuonDelegatorRewards", function () {
       await muonDelegatorRewards
         .connect(user)
         .delegateNFT(tokenId, user.address, false);
-      
+
       await expect(bonPion.ownerOf(tokenId)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
-      expect((await nodeStaking.valueOfBondedToken(1)).toString()).to.eq(nftPower.toString());
+      expect((await nodeStaking.valueOfBondedToken(1)).toString()).to.eq(
+        nftPower.toString()
+      );
 
       expect(await muonDelegatorRewards.balances(user.address)).to.be.equal(
         nftPower[0]
@@ -378,34 +420,18 @@ describe("MuonDelegatorRewards", function () {
       expect(await muonDelegatorRewards.restake(user.address)).to.be.equal(
         false
       );
+
+      await muonDelegatorRewards.connect(user).setRestake(true);
+
+      expect(await muonDelegatorRewards.restake(user.address)).to.be.equal(
+        true
+      );
     });
   });
 
   describe("Bulk import", async () => {
     it("should successfully bulk import ", async () => {
-      const [user1, user2, user3, user4] = await ethers.getSigners();
-
       const initialNodeStakerBalance = await pion.balanceOf(nodeStaker.address);
-
-      const user1Balance = ethers.utils.parseEther("5");
-      const user2Balance = ethers.utils.parseEther("10");
-      const user3Balance = ethers.utils.parseEther("15");
-      const user4Balance = ethers.utils.parseEther("20");
-
-      const userBalances = [
-        user1Balance,
-        user2Balance,
-        user3Balance,
-        user4Balance,
-      ];
-      const userAddresses = [
-        user1.address,
-        user2.address,
-        user3.address,
-        user4.address,
-      ];
-      const userStartDates = [1729666262, 1727074262, 1724395862, 1721717462];
-      const userReStakes = [false, false, true, true];
 
       await expect(
         muonDelegatorRewards
@@ -470,14 +496,16 @@ describe("MuonDelegatorRewards", function () {
     it("Owner should be able to withdraw bonToken", async () => {
       await pion.connect(pionMinter).mint(user.address, ONE.mul(100));
       await pion.connect(user).approve(bonPion.address, ONE.mul(100));
-      const tokenId = await bonPion
-      .callStatic
-      .mintAndLock([pion.address], [ONE.mul(100)], user.address);
+      const tokenId = await bonPion.callStatic.mintAndLock(
+        [pion.address],
+        [ONE.mul(100)],
+        user.address
+      );
       await bonPion
         .connect(user)
         .mintAndLock([pion.address], [ONE.mul(100)], user.address);
 
-      expect((await nodeStaking.valueOfBondedToken(1))).to.eq(0);
+      expect(await nodeStaking.valueOfBondedToken(1)).to.eq(0);
       const nftPower = await nodeStaking.valueOfBondedToken(tokenId);
 
       expect(await bonPion.ownerOf(tokenId)).to.be.equal(user.address);
@@ -490,29 +518,37 @@ describe("MuonDelegatorRewards", function () {
         .connect(user)
         .delegateNFT(tokenId, user.address, false);
 
-      expect((await nodeStaking.valueOfBondedToken(1)).toString()).to.eq(nftPower.toString());
-      expect((await nodeStaking.valueOfBondedToken(tokenId))).to.eq(0);
+      expect((await nodeStaking.valueOfBondedToken(1)).toString()).to.eq(
+        nftPower.toString()
+      );
+      expect(await nodeStaking.valueOfBondedToken(tokenId)).to.eq(0);
 
-      expect(await bonPion.ownerOf(1)).to.be.equal(muonDelegatorRewards.address);
+      expect(await bonPion.ownerOf(1)).to.be.equal(
+        muonDelegatorRewards.address
+      );
       await muonDelegatorRewards.connect(admin).withdrawBonToken(admin.address);
       expect(await bonPion.ownerOf(1)).to.be.equal(admin.address);
       expect(await muonDelegatorRewards.bonTokenId()).not.to.be.equal(1);
-      expect((await nodeStaking.valueOfBondedToken(
-        await muonDelegatorRewards.bonTokenId()
-      ))).to.eq(0);
+      expect(
+        await nodeStaking.valueOfBondedToken(
+          await muonDelegatorRewards.bonTokenId()
+        )
+      ).to.eq(0);
     });
 
     it("Non-owner should not be able to withdraw bonToken", async () => {
       await pion.connect(pionMinter).mint(user.address, ONE.mul(100));
       await pion.connect(user).approve(bonPion.address, ONE.mul(100));
-      const tokenId = await bonPion
-      .callStatic
-      .mintAndLock([pion.address], [ONE.mul(100)], user.address);
+      const tokenId = await bonPion.callStatic.mintAndLock(
+        [pion.address],
+        [ONE.mul(100)],
+        user.address
+      );
       await bonPion
         .connect(user)
         .mintAndLock([pion.address], [ONE.mul(100)], user.address);
 
-      expect((await nodeStaking.valueOfBondedToken(1))).to.eq(0);
+      expect(await nodeStaking.valueOfBondedToken(1)).to.eq(0);
       const nftPower = await nodeStaking.valueOfBondedToken(tokenId);
 
       expect(await bonPion.ownerOf(tokenId)).to.be.equal(user.address);
@@ -525,15 +561,165 @@ describe("MuonDelegatorRewards", function () {
         .connect(user)
         .delegateNFT(tokenId, user.address, false);
 
-      expect((await nodeStaking.valueOfBondedToken(1)).toString()).to.eq(nftPower.toString());
-      expect((await nodeStaking.valueOfBondedToken(tokenId))).to.eq(0);
+      expect((await nodeStaking.valueOfBondedToken(1)).toString()).to.eq(
+        nftPower.toString()
+      );
+      expect(await nodeStaking.valueOfBondedToken(tokenId)).to.eq(0);
 
-      expect(await bonPion.ownerOf(1)).to.be.equal(muonDelegatorRewards.address);
+      expect(await bonPion.ownerOf(1)).to.be.equal(
+        muonDelegatorRewards.address
+      );
       await expect(
         muonDelegatorRewards.connect(user).withdrawBonToken(admin.address)
       ).to.be.revertedWith("Ownable: caller is not the owner");
-      expect(await bonPion.ownerOf(1)).to.be.equal(muonDelegatorRewards.address);
+      expect(await bonPion.ownerOf(1)).to.be.equal(
+        muonDelegatorRewards.address
+      );
       expect(await muonDelegatorRewards.bonTokenId()).to.be.equal(1);
     });
-  })
+  });
+
+  describe("remove user", async () => {
+    it("should remove user successFully", async () => {
+      // import 4 users
+      await muonDelegatorRewards
+        .connect(admin)
+        .bulkImport(userAddresses, userBalances, userStartDates, userReStakes);
+
+      //invalid index
+      await expect(muonDelegatorRewards.getUsers(0, 4)).to.be.revertedWithPanic(
+        "0x11"
+      );
+
+      const users = await muonDelegatorRewards.getUsers(1, 4);
+
+      //try to remove user with index 2.
+
+      // user address to remove
+      const userToRemoveAddress = users[0][1];
+
+      //for example remove index 2
+      const removeIndex = 2;
+
+      const lastIndex = users[0].length - 1;
+
+      const usersLength = users[0].length;
+
+      let lastUserAddress = users[0][lastIndex];
+
+      const userToRemoveIndex = await muonDelegatorRewards.userIndexes(
+        userToRemoveAddress
+      );
+
+      expect(
+        await muonDelegatorRewards.balances(userToRemoveAddress)
+      ).to.be.equals(user2Balance);
+
+      expect(await muonDelegatorRewards.balances(lastUserAddress)).to.be.equals(
+        user4Balance
+      );
+
+      let lastUserIndex = await muonDelegatorRewards.userIndexes(
+        lastUserAddress
+      );
+
+      expect(lastUserIndex).to.be.equals(usersLength);
+
+      expect(userToRemoveIndex).to.be.equals(removeIndex);
+
+      //non-admin cant remove user
+      await expect(
+        muonDelegatorRewards.connect(user).removeUser(removeIndex)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await muonDelegatorRewards.connect(admin).removeUser(removeIndex);
+
+      //check removed user index and balance after remove
+      expect(
+        await muonDelegatorRewards.userIndexes(userToRemoveAddress)
+      ).to.be.equals(0);
+
+      expect(
+        await muonDelegatorRewards.startDates(userToRemoveAddress)
+      ).to.be.equals(0);
+
+      expect(
+        await muonDelegatorRewards.restake(userToRemoveAddress)
+      ).to.be.equals(false);
+
+      expect(
+        await muonDelegatorRewards.balances(userToRemoveAddress)
+      ).to.be.equals(0);
+
+      //check last user replacement index
+      expect(
+        await muonDelegatorRewards.userIndexes(lastUserAddress)
+      ).to.be.equals(removeIndex);
+
+      expect(await muonDelegatorRewards.balances(lastUserAddress)).to.be.equals(
+        user4Balance
+      );
+
+      await expect(muonDelegatorRewards.getUsers(1, 4)).to.be.revertedWithPanic(
+        "0x32"
+      );
+
+      await expect(
+        muonDelegatorRewards.connect(admin).removeUser(10)
+      ).to.be.revertedWithPanic("0x32");
+
+      await expect(
+        muonDelegatorRewards.connect(admin).removeUser(0)
+      ).to.be.revertedWithPanic("0x11");
+
+      //remove last user
+      let usersAfterRemove = await muonDelegatorRewards.getUsers(1, 3);
+
+      lastUserAddress = usersAfterRemove[0][2];
+      lastUserIndex = await muonDelegatorRewards.userIndexes(lastUserAddress);
+      await muonDelegatorRewards.connect(admin).removeUser(lastUserIndex);
+
+      await expect(muonDelegatorRewards.getUsers(1, 3)).to.be.revertedWithPanic(
+        "0x32"
+      );
+
+      expect(
+        await muonDelegatorRewards.userIndexes(lastUserAddress)
+      ).to.be.equals(0);
+
+      usersAfterRemove = await muonDelegatorRewards.getUsers(1, 2);
+
+      //remove first user
+      const firstUserAddress = usersAfterRemove[0][0];
+      const firstUserIndex = await muonDelegatorRewards.userIndexes(
+        firstUserAddress
+      );
+
+      await muonDelegatorRewards.connect(admin).removeUser(firstUserIndex);
+
+      expect(
+        await muonDelegatorRewards.userIndexes(firstUserAddress)
+      ).to.be.equals(0);
+
+      await expect(muonDelegatorRewards.getUsers(1, 2)).to.be.revertedWithPanic(
+        "0x32"
+      );
+
+      usersAfterRemove = await muonDelegatorRewards.getUsers(1, 1);
+
+      const onlyUserLeftAddress = usersAfterRemove[0][0];
+      const onlyUserLeftIndex = await muonDelegatorRewards.userIndexes(
+        onlyUserLeftAddress
+      );
+      await muonDelegatorRewards.connect(admin).removeUser(onlyUserLeftIndex);
+
+      expect(
+        await muonDelegatorRewards.userIndexes(onlyUserLeftAddress)
+      ).to.be.equals(0);
+
+      await expect(muonDelegatorRewards.getUsers(1, 1)).to.be.revertedWithPanic(
+        "0x32"
+      );
+    });
+  });
 });
