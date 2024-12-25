@@ -283,12 +283,14 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         _startDates = new uint256[](toIndex - fromIndex + 1);
         _restakes = new bool[](toIndex - fromIndex + 1);
 
+        uint256 j = 0;
         for (uint256 i = fromIndex - 1; i < toIndex; i++) {
             address user = allUsers[i];
-            _addrs[i] = user;
-            _balances[i] = balances[user];
-            _startDates[i] = startDates[user];
-            _restakes[i] = restake[user];
+            _addrs[j] = user;
+            _balances[j] = balances[user];
+            _startDates[j] = startDates[user];
+            _restakes[j] = restake[user];
+            j++;
         }
     }
 
