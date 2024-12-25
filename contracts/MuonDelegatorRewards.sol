@@ -294,6 +294,10 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         }
     }
 
+    function getUsersLength() external view returns(uint256) {
+        return allUsers.length;
+    }
+
     function transferable(
         uint256 amount,
         uint256 time
