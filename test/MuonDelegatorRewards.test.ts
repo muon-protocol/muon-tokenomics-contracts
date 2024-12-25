@@ -722,4 +722,155 @@ describe("MuonDelegatorRewards", function () {
       );
     });
   });
+
+  describe("getUsers", async () => {
+    beforeEach(async () => {
+      await muonDelegatorRewards
+        .connect(admin)
+        .bulkImport(userAddresses, userBalances, userStartDates, userReStakes);
+    });
+
+    it("should revert with invalid index", async () => {
+      await expect(muonDelegatorRewards.getUsers(1, 5)).to.be.revertedWithPanic(
+        "0x32"
+      );
+    });
+
+    it("should get user successfully", async () => {
+      const users = await muonDelegatorRewards.getUsers(1, 4);
+
+      const addresses = users[0];
+      const balances = users[1];
+      const startDates = users[2];
+      const reStakes = users[3];
+
+      expect(addresses[0]).to.be.equal(userAddresses[0]);
+      expect(addresses[1]).to.be.equal(userAddresses[1]);
+      expect(addresses[2]).to.be.equal(userAddresses[2]);
+      expect(addresses[3]).to.be.equal(userAddresses[3]);
+
+      expect(balances[0]).to.be.equal(userBalances[0]);
+      expect(balances[1]).to.be.equal(userBalances[1]);
+      expect(balances[2]).to.be.equal(userBalances[2]);
+      expect(balances[3]).to.be.equal(userBalances[3]);
+
+      expect(startDates[0]).to.be.equal(userStartDates[0]);
+      expect(startDates[1]).to.be.equal(userStartDates[1]);
+      expect(startDates[2]).to.be.equal(userStartDates[2]);
+      expect(startDates[3]).to.be.equal(userStartDates[3]);
+
+      expect(reStakes[0]).to.be.equal(userReStakes[0]);
+      expect(reStakes[1]).to.be.equal(userReStakes[1]);
+      expect(reStakes[2]).to.be.equal(userReStakes[2]);
+      expect(reStakes[3]).to.be.equal(userReStakes[3]);
+    });
+
+    it("should get custom index user successfully", async () => {
+      const users = await muonDelegatorRewards.getUsers(2, 4);
+
+      const addresses = users[0];
+      const balances = users[1];
+      const startDates = users[2];
+      const reStakes = users[3];
+
+      expect(addresses[0]).to.be.equal(userAddresses[1]);
+      expect(addresses[1]).to.be.equal(userAddresses[2]);
+      expect(addresses[2]).to.be.equal(userAddresses[3]);
+      expect(balances[0]).to.be.equal(userBalances[1]);
+      expect(balances[1]).to.be.equal(userBalances[2]);
+      expect(balances[2]).to.be.equal(userBalances[3]);
+      expect(startDates[0]).to.be.equal(userStartDates[1]);
+      expect(startDates[1]).to.be.equal(userStartDates[2]);
+      expect(startDates[2]).to.be.equal(userStartDates[3]);
+      expect(reStakes[0]).to.be.equal(userReStakes[1]);
+      expect(reStakes[1]).to.be.equal(userReStakes[2]);
+      expect(reStakes[2]).to.be.equal(userReStakes[3]);
+    });
+
+    it("should get last user successfully", async () => {
+      const users = await muonDelegatorRewards.getUsers(4, 4);
+
+      const addresses = users[0];
+      const balances = users[1];
+      const startDates = users[2];
+      const reStakes = users[3];
+
+      expect(addresses[0]).to.be.equal(userAddresses[3]);
+      expect(balances[0]).to.be.equal(userBalances[3]);
+      expect(startDates[0]).to.be.equal(userStartDates[3]);
+      expect(reStakes[0]).to.be.equal(userReStakes[3]);
+    });
+
+    it("should get first user successfully", async () => {
+      const users = await muonDelegatorRewards.getUsers(1, 1);
+
+      const addresses = users[0];
+      const balances = users[1];
+      const startDates = users[2];
+      const reStakes = users[3];
+
+      expect(addresses[0]).to.be.equal(userAddresses[0]);
+      expect(balances[0]).to.be.equal(userBalances[0]);
+      expect(startDates[0]).to.be.equal(userStartDates[0]);
+      expect(reStakes[0]).to.be.equal(userReStakes[0]);
+    });
+
+    it("should get 2 first user successfully", async () => {
+      const users = await muonDelegatorRewards.getUsers(1, 2);
+
+      const addresses = users[0];
+      const balances = users[1];
+      const startDates = users[2];
+      const reStakes = users[3];
+
+      expect(addresses[0]).to.be.equal(userAddresses[0]);
+      expect(addresses[1]).to.be.equal(userAddresses[1]);
+      expect(balances[0]).to.be.equal(userBalances[0]);
+      expect(balances[1]).to.be.equal(userBalances[1]);
+      expect(startDates[0]).to.be.equal(userStartDates[0]);
+      expect(startDates[1]).to.be.equal(userStartDates[1]);
+      expect(reStakes[0]).to.be.equal(userReStakes[0]);
+      expect(reStakes[1]).to.be.equal(userReStakes[1]);
+    });
+
+    it("should get 2 last user successfully", async () => {
+      const users = await muonDelegatorRewards.getUsers(3, 4);
+
+      const addresses = users[0];
+      const balances = users[1];
+      const startDates = users[2];
+      const reStakes = users[3];
+
+      expect(addresses[0]).to.be.equal(userAddresses[2]);
+      expect(addresses[1]).to.be.equal(userAddresses[3]);
+      expect(balances[0]).to.be.equal(userBalances[2]);
+      expect(balances[1]).to.be.equal(userBalances[3]);
+      expect(startDates[0]).to.be.equal(userStartDates[2]);
+      expect(startDates[1]).to.be.equal(userStartDates[3]);
+      expect(reStakes[0]).to.be.equal(userReStakes[2]);
+      expect(reStakes[1]).to.be.equal(userReStakes[3]);
+    });
+
+    it("should get 3 first user successfully", async () => {
+      const users = await muonDelegatorRewards.getUsers(1, 3);
+
+      const addresses = users[0];
+      const balances = users[1];
+      const startDates = users[2];
+      const reStakes = users[3];
+
+      expect(addresses[0]).to.be.equal(userAddresses[0]);
+      expect(addresses[1]).to.be.equal(userAddresses[1]);
+      expect(addresses[2]).to.be.equal(userAddresses[2]);
+      expect(balances[0]).to.be.equal(userBalances[0]);
+      expect(balances[1]).to.be.equal(userBalances[1]);
+      expect(balances[2]).to.be.equal(userBalances[2]);
+      expect(startDates[0]).to.be.equal(userStartDates[0]);
+      expect(startDates[1]).to.be.equal(userStartDates[1]);
+      expect(startDates[2]).to.be.equal(userStartDates[2]);
+      expect(reStakes[0]).to.be.equal(userReStakes[0]);
+      expect(reStakes[1]).to.be.equal(userReStakes[1]);
+      expect(reStakes[2]).to.be.equal(userReStakes[2]);
+    });
+  });
 });
