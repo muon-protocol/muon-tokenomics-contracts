@@ -70,6 +70,12 @@ contract MuonNodeStaking is
     // function name => paused
     mapping(string => bool) public functionPauseStatus;
 
+    // staker address => amount
+    mapping(address => uint256) public pendingUnstakes;
+
+    // staker address => request time
+    mapping(address => uint256) public unstakeReqTimes;
+
     SchnorrSECP256K1VerifierV2 public verifier;
 
 
@@ -102,6 +108,7 @@ contract MuonNodeStaking is
         bool isPaused
     );
     event VerifierUpdated(address verifierAddress);
+    event Unstaked(address indexed stakerAddress, uint256 amount);
 
     // ======== Modifiers ========
     /**
@@ -452,6 +459,35 @@ contract MuonNodeStaking is
     }
 
     /**
+     * @dev Allows stakers to unstake their any desired staking amount
+     * @param _recipient recipient address of unstaked tokens
+     * @param _amount amount to unstake
+     */
+    function unstake(address _recipient, uint256 _amount) external {
+        require(users[msg.sender].balance >= _amount, "Insufficient balance");
+
+        uint256 balance = users[msg.sender].balance;
+
+        totalStaked -= _amount;
+        users[msg.sender].balance -= _amount;
+        pendingUnstakes[msg.sender] += _amount;
+        unstakeReqTimes[msg.sender] = block.timestamp;
+
+        if(_amount == balance) {
+            IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
+                msg.sender
+            );
+            nodeManager.deactiveNode(node.id);
+        }
+
+        if(exitPendingPeriod == 0){
+            claimUnstake(_recipient);
+        }
+
+        emit Unstaked(msg.sender, _amount);
+    }
+
+    /**
      * @dev Allows users to add a Muon node.
      * The user must have a sufficient staking amount in the BondedToken contract to run a node.
      * @param nodeAddress The address of the Muon node.
@@ -651,6 +687,27 @@ contract MuonNodeStaking is
             emit MuonNodeAdded(_nodeAddress[i], staker, _peerId[i]);
             emit Staked(staker, _balance[i]);
         }
+    }
+
+    /**
+     * 
+     * @notice the exit pending period should be passed
+     * @param _recipient recipient address of claimed tokens
+     */
+    function claimUnstake(address _recipient) public {
+        require(!lockedStakes[msg.sender], "Stake is locked.");
+        require(
+            unstakeReqTimes[msg.sender] + exitPendingPeriod < block.timestamp,
+            "The unstake time has not been reached yet."
+        );
+        require(pendingUnstakes[msg.sender] > 0, "No pending unstake");
+
+        uint256 amount = pendingUnstakes[msg.sender];
+
+        delete pendingUnstakes[msg.sender];
+        delete unstakeReqTimes[msg.sender];
+
+        bondedToken.redeemBaseToken(_recipient, users[msg.sender].tokenId, amount);
     }
 
     /**
