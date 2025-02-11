@@ -76,6 +76,9 @@ contract MuonNodeStaking is
     // staker address => request time
     mapping(address => uint256) public unstakeReqTimes;
 
+    // delegator => staker
+    mapping(address => address) public stakerDelegators;
+
     SchnorrSECP256K1VerifierV2 public verifier;
 
 
@@ -108,7 +111,9 @@ contract MuonNodeStaking is
         bool isPaused
     );
     event VerifierUpdated(address verifierAddress);
+    event Delegated(address indexed stakerAddress, address delegator);
     event Unstaked(address indexed stakerAddress, uint256 amount);
+    event DelegatorUnstaked(address indexed delegator, uint256 amount, address recipient);
 
     // ======== Modifiers ========
     /**
@@ -456,6 +461,47 @@ contract MuonNodeStaking is
         users[msg.sender].tokenId = 0;
         bondedToken.safeTransferFrom(address(this), msg.sender, tokenId);
         emit Withdrawn(msg.sender, tokenId);
+    }
+
+    /**
+     * @dev delegate staking to another address/delegator contract
+     * @param _delegator delegator address
+     */
+    function delegate(address _delegator) external {
+        require(users[msg.sender].tokenId != 0, "Invalid staker");
+        stakerDelegators[msg.sender] = _delegator;
+
+        emit Delegated(msg.sender, _delegator);
+    }
+
+    /**
+     * @dev Allows delegators to unstake on behalf of stakers
+     * @param _recipient recipient address of unstaked tokens
+     * @param _amount amount to unstake
+     */
+    function delegatorUnstake(address _recipient, uint256 _amount) external {
+        address staker = stakerDelegators[msg.sender];
+        require(users[staker].balance >= _amount, "Insufficient balance");
+
+        uint256 balance = users[staker].balance;
+
+        totalStaked -= _amount;
+        users[staker].balance -= _amount;
+        pendingUnstakes[staker] += _amount;
+        unstakeReqTimes[staker] = block.timestamp;
+
+        if(_amount == balance) {
+            IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
+                staker
+            );
+            nodeManager.deactiveNode(node.id);
+        }
+
+        if(exitPendingPeriod == 0){
+            claimUnstake(_recipient);
+        }
+
+        emit DelegatorUnstaked(staker, _amount, _recipient);
     }
 
     /**
