@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import "./interfaces/IToken.sol";
+import "./interfaces/IEscrow.sol";
 
 contract BondedToken is
     Initializable,
@@ -24,6 +25,7 @@ contract BondedToken is
         keccak256("TRANSFERABLE_ADDRESS_ROLE");
     bytes32 public constant BOOSTER_ROLE =
         keccak256("BOOSTER_ROLE");
+    bytes32 public constant REDEEM_ROLE = keccak256("REDEEM_ROLE");
 
     uint256 public tokenIdCounter;
 
@@ -32,6 +34,10 @@ contract BondedToken is
     address public treasury;
 
     bool public isPublicTransferEnabled;
+
+    address public escrow;
+
+    bool public isPublicRedeemEnabled;
 
     address[] public tokensWhitelist;
 
@@ -79,6 +85,8 @@ contract BondedToken is
 
     event TreasuryUpdated(address treasury);
 
+    event Redeem(uint256 tokenId, address to, uint256 amount, address redeemer);
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -92,7 +100,8 @@ contract BondedToken is
         address _token,
         address _treasury,
         string memory _name,
-        string memory _symbol
+        string memory _symbol,
+        address _escrow
     ) internal initializer {
         __ERC721_init(_name, _symbol);
         __Pausable_init();
@@ -111,6 +120,8 @@ contract BondedToken is
         // whitelist baseToken
         tokensWhitelist.push(baseToken);
         isTokenWhitelisted[baseToken] = true;
+
+        escrow = _escrow;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(TRANSFERABLE_ADDRESS_ROLE, address(0));
@@ -200,6 +211,30 @@ contract BondedToken is
         boostedBalance[tokenIdB] += boostedBalance[tokenIdA];
         _burn(tokenIdA);
         emit Merged(msg.sender, tokenIdA, tokenIdB);
+    }
+
+    function redeemBaseToken(
+        address _recipient,
+        uint256 _tokenId,
+        uint256 _amount
+    ) external {
+        require(_amount > 0, "Invalid amount");
+        require(
+            lockedOf[_tokenId][baseToken] >= _amount,
+            "Insufficient balance"
+        );
+        require(
+            ownerOf(_tokenId) == msg.sender,
+            "Permission denied"
+        );
+
+        if (!isPublicRedeemEnabled) {
+            require(hasRole(REDEEM_ROLE, msg.sender), "Redeem is limited");
+        }
+
+        IEscrow(escrow).redeemTo(_recipient, _amount);
+
+        emit Redeem(_tokenId, _recipient, _amount, msg.sender);
     }
 
     /// @notice splits NFT into two NFTs

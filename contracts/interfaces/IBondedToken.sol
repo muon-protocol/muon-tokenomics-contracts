@@ -42,4 +42,6 @@ interface IBondedToken {
         address to
     ) external returns (uint256 tokenId);
 
+    function redeemBaseToken(address _recipient, uint256 _tokenId, uint256 _amount) external;
+
 }
