@@ -112,7 +112,7 @@ contract MuonNodeStaking is
     );
     event VerifierUpdated(address verifierAddress);
     event Delegated(address indexed stakerAddress, address delegator);
-    event Unstaked(address indexed stakerAddress, uint256 amount);
+    event Unstaked(address indexed stakerAddress, uint256 amount, address recipient);
     event DelegatorUnstaked(address indexed delegator, uint256 amount, address recipient);
 
     // ======== Modifiers ========
@@ -530,7 +530,7 @@ contract MuonNodeStaking is
             claimUnstake(_recipient);
         }
 
-        emit Unstaked(msg.sender, _amount);
+        emit Unstaked(msg.sender, _amount, _recipient);
     }
 
     /**
