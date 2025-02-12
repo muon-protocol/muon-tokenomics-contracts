@@ -479,7 +479,10 @@ contract MuonNodeStaking is
      * @param _recipient recipient address of unstaked tokens
      * @param _amount amount to unstake
      */
-    function delegatorUnstake(address _recipient, uint256 _amount) external {
+    function delegatorUnstake(
+        address _recipient,
+        uint256 _amount
+    ) external updateReward(stakerDelegators[msg.sender]) {
         address staker = stakerDelegators[msg.sender];
         require(users[staker].balance >= _amount, "Insufficient balance");
 
@@ -509,7 +512,10 @@ contract MuonNodeStaking is
      * @param _recipient recipient address of unstaked tokens
      * @param _amount amount to unstake
      */
-    function unstake(address _recipient, uint256 _amount) external {
+    function unstake(
+        address _recipient,
+        uint256 _amount
+    ) updateReward(msg.sender) external {
         require(users[msg.sender].balance >= _amount, "Insufficient balance");
 
         uint256 balance = users[msg.sender].balance;
