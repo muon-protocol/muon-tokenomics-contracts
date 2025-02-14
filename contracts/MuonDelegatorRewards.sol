@@ -19,6 +19,7 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     mapping(address => uint256) public startDates;
     mapping(address => bool) public restake;
     mapping(address => uint256) public userIndexes;
+    mapping(address => uint256) public pendingRewards;
 
     uint256 public lastDisTime;
 
@@ -30,6 +31,7 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     event DelegatedToken(address indexed user, uint256 amount);
     event Staked(address indexed user, uint256 balance, uint256 amount);
     event Rewarded(address indexed user, uint256 balance, uint256 amount);
+    event Undelegated(address indexed user, uint256 balance, uint256 amount);
 
     function initialize(
         address _muonTokenAddress,
@@ -75,6 +77,9 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     function distribute(uint256 amount, uint256 time) external onlyOwner {
         uint256[] memory amounts = calcAmounts(amount, time);
         for (uint256 i = 0; i < allUsers.length; i++) {
+            if(pendingRewards[allUsers[i]] != 0) {
+                pendingRewards[allUsers[i]] = 0;
+            }
             if (amounts[i] > 0) {
                 if (!restake[allUsers[i]]) {
                     IERC20Upgradeable(muonToken).transfer(
@@ -121,15 +126,7 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     }
 
     function removeUser(uint256 index) external onlyOwner {
-        address _user = allUsers[index - 1];
-        address lastUser = allUsers[allUsers.length - 1];
-        allUsers[index - 1] = lastUser;
-        allUsers.pop();
-        balances[_user] = 0;
-        startDates[_user] = 0;
-        restake[_user] = false;
-        userIndexes[lastUser] = index;
-        userIndexes[_user] = 0;
+        _removeUser(index);
     }
 
     function adminWithdraw(
@@ -234,6 +231,33 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         userIndexes[user] = index;
     }
 
+    /**
+     * 
+     * @param _amount the amount to undelegate
+     */
+    function undelegate(uint256 _amount) external {
+        require(balances[msg.sender] >= _amount, "Insufficient balance");
+
+        if(_amount == balances[msg.sender]) {
+            _removeUser(userIndexes[msg.sender]);
+        } else {
+            // Calculate user's pendingReward before the balance change
+            uint256 userSecs = block.timestamp - lastDisTime;
+            if (startDates[msg.sender] > lastDisTime) {
+                userSecs = block.timestamp - startDates[msg.sender];
+            }
+            pendingRewards[msg.sender] = balances[msg.sender] * userSecs;
+
+            // Change the balance and start date
+            balances[msg.sender] -= _amount;
+            startDates[msg.sender] = block.timestamp;
+        }
+
+        nodeStaking.delegatorUnstake(msg.sender, _amount);
+
+        emit Undelegated(msg.sender, balances[msg.sender], _amount);
+    }
+
     function calcAmounts(
         uint256 amount,
         uint256 time
@@ -247,8 +271,11 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
             if (startDates[allUsers[i]] > lastDisTime) {
                 userSecs = time - startDates[allUsers[i]];
             }
-            totalSecs += balances[allUsers[i]] * userSecs;
             out[i] = balances[allUsers[i]] * userSecs;
+            if(pendingRewards[allUsers[i]] > 0) {
+                out[i] += pendingRewards[allUsers[i]];
+            }
+            totalSecs += out[i];
         }
 
         for (uint256 i = 0; i < allUsers.length; i++) {
@@ -256,6 +283,16 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         }
     }
 
+    /**
+     * 
+     * @param _user staker/unstaker user
+     * @param _stakeAmount the amount of stake
+     * @dev It calculates the weighted average of timestamps
+     * newStartDate = (prev-balance * prev-startdate) + (added balance * now) / new balance
+     * Ex:
+     * prevBalance = 12k, prevStartDate = t1, added Balance = 2k, now = t2
+     * newStartDate = ( (12k * t1) + (2k * t2) ) / 14k
+     */
     function calcNewStartDate(
         address _user,
         uint256 _stakeAmount
@@ -326,5 +363,18 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         bytes calldata
     ) external pure returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    function _removeUser(uint256 index) internal {
+        address _user = allUsers[index - 1];
+        address lastUser = allUsers[allUsers.length - 1];
+        allUsers[index - 1] = lastUser;
+        allUsers.pop();
+        balances[_user] = 0;
+        startDates[_user] = 0;
+        restake[_user] = false;
+        userIndexes[lastUser] = index;
+        userIndexes[_user] = 0;
+        pendingRewards[_user] = 0;
     }
 }
