@@ -117,6 +117,12 @@ contract MuonNodeStaking is
     event Delegated(address indexed stakerAddress, address delegator);
     event Undelegated(address indexed stakerAddress, address delegator);
     event Unstaked(address indexed stakerAddress, uint256 amount, address recipient);
+    event ClaimUnstake(
+        uint256 amount,
+        address indexed recipient,
+        address indexed staker,
+        uint256 indexed tokenId
+    );
 
     // ======== Modifiers ========
     /**
@@ -870,11 +876,15 @@ contract MuonNodeStaking is
         delete pendingUnstakes[_recipient];
         delete unstakeReqTimes[_recipient];
 
+        uint256 tokenId = users[_staker].tokenId;
+
         if(users[_staker].balance == 0) {
             _deactiveMuonNode(_staker);
         }
 
-        bondedToken.redeemBaseToken(_recipient, users[_staker].tokenId, amount);
+        bondedToken.redeemBaseToken(_recipient, tokenId, amount);
+
+        emit ClaimUnstake(amount, _recipient, _staker, tokenId);
     }
 
     function _deactiveMuonNode(
