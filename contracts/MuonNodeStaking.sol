@@ -482,6 +482,32 @@ contract MuonNodeStaking is
     }
 
     /**
+     * @dev undelegate staking
+     */
+    function undelegate() external {
+        address delegator = stakerDelegators[msg.sender];
+        require(delegator != address(0), "Delegation not found");
+
+        delete stakerDelegators[msg.sender];
+        delete delegatorStakers[delegator];
+
+        emit Undelegated(msg.sender, delegator);
+    }
+
+    /**
+     * @dev undelegate staking
+     */
+    function renounceDelegation() external {
+        address staker = delegatorStakers[msg.sender];
+        require(staker != address(0), "Delegation not found");
+
+        delete stakerDelegators[staker];
+        delete delegatorStakers[msg.sender];
+
+        emit Undelegated(staker, msg.sender);
+    }
+
+    /**
      * @dev Allows delegators to unstake on behalf of stakers
      * @param _recipient recipient address of unstaked tokens
      * @param _amount amount to unstake
