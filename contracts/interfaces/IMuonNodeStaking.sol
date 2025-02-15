@@ -22,6 +22,8 @@ interface IMuonNodeStaking {
     function setMuonNodeTier(address stakerAddress, uint8 tier) external;
 
     function delegatorUnstake(address _recipient, uint256 _amount) external;
+    
+    function delegatorClaimUnstake(address _recipient) external;
 
     function valueOfBondedToken(
         uint256 tokenId
