@@ -539,6 +539,22 @@ contract MuonNodeStaking is
     }
 
     /**
+     * 
+     * @notice the exit pending period should be passed
+     */
+    function claimUnstake() external {
+        _claimUnstake(msg.sender, msg.sender);
+    }
+
+    /**
+     * 
+     * @notice the exit pending period should be passed
+     */
+    function delegatorClaimUnstake(address _recipient) external {
+        _claimUnstake(delegatorStakers[msg.sender], _recipient);
+    }
+
+    /**
      * @dev Allows users to add a Muon node.
      * The user must have a sufficient staking amount in the BondedToken contract to run a node.
      * @param nodeAddress The address of the Muon node.
@@ -738,22 +754,6 @@ contract MuonNodeStaking is
             emit MuonNodeAdded(_nodeAddress[i], staker, _peerId[i]);
             emit Staked(staker, _balance[i]);
         }
-    }
-
-    /**
-     * 
-     * @notice the exit pending period should be passed
-     */
-    function claimUnstake() external {
-        _claimUnstake(msg.sender, msg.sender);
-    }
-
-    /**
-     * 
-     * @notice the exit pending period should be passed
-     */
-    function delegatorClaimUnstake(address _recipient) external {
-        _claimUnstake(delegatorStakers[msg.sender], _recipient);
     }
 
     /**
