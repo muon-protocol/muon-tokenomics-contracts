@@ -31,7 +31,8 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     event DelegatedToken(address indexed user, uint256 amount);
     event Staked(address indexed user, uint256 balance, uint256 amount);
     event Rewarded(address indexed user, uint256 balance, uint256 amount);
-    event Undelegated(address indexed user, uint256 balance, uint256 amount);
+    event Unstake(address indexed user, uint256 balance, uint256 amount);
+    event ClaimUnstake(address indexed user);
 
     function initialize(
         address _muonTokenAddress,
@@ -233,9 +234,9 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
 
     /**
      * 
-     * @param _amount the amount to undelegate
+     * @param _amount the amount to unstake
      */
-    function undelegate(uint256 _amount) external {
+    function unstake(uint256 _amount) external {
         require(balances[msg.sender] >= _amount, "Insufficient balance");
 
         if(_amount == balances[msg.sender]) {
@@ -255,7 +256,16 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
 
         nodeStaking.delegatorUnstake(msg.sender, _amount);
 
-        emit Undelegated(msg.sender, balances[msg.sender], _amount);
+        emit Unstake(msg.sender, balances[msg.sender], _amount);
+    }
+
+    /**
+     * @notice claim pending unstake
+     */
+    function claimUnstake() external {
+        nodeStaking.delegatorClaimUnstake(msg.sender);
+
+        emit ClaimUnstake(msg.sender);
     }
 
     function calcAmounts(
