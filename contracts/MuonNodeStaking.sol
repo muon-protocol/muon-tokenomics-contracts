@@ -516,6 +516,16 @@ contract MuonNodeStaking is
     }
 
     /**
+     * @dev Allows stakers to unstake their any desired staking amount
+     * @param _amount amount to unstake
+     */
+    function unstake(
+        uint256 _amount
+    ) updateReward(msg.sender) external {
+        _unstake(msg.sender, msg.sender, _amount);
+    }
+
+    /**
      * @dev Allows delegators to unstake on behalf of stakers
      * @param _recipient recipient address of unstaked tokens
      * @param _amount amount to unstake
@@ -526,16 +536,6 @@ contract MuonNodeStaking is
     ) external updateReward(stakerDelegators[msg.sender]) {
         address staker = delegatorStakers[msg.sender];
         _unstake(staker, _recipient, _amount);
-    }
-
-    /**
-     * @dev Allows stakers to unstake their any desired staking amount
-     * @param _amount amount to unstake
-     */
-    function unstake(
-        uint256 _amount
-    ) updateReward(msg.sender) external {
-        _unstake(msg.sender, msg.sender, _amount);
     }
 
     /**
