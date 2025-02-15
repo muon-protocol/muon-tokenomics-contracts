@@ -476,7 +476,7 @@ contract MuonNodeStaking is
      * @dev delegate staking to another address/delegator contract
      * @param _delegator delegator address
      */
-    function delegate(address _delegator) external {
+    function delegate(address _delegator) external whenFunctionNotPaused("delegate") {
         require(users[msg.sender].tokenId != 0, "Invalid staker");
         require(stakerDelegators[msg.sender] == address(0), "Staker is already delegated");
         require(delegatorStakers[_delegator] == address(0), "Delegator is already delegated");
@@ -489,8 +489,9 @@ contract MuonNodeStaking is
 
     /**
      * @dev undelegate staking
+     * @notice delegator can revoke delegation 
      */
-    function undelegate() external {
+    function revokeDelegation() external whenFunctionNotPaused("undelegate") {
         address delegator = stakerDelegators[msg.sender];
         require(delegator != address(0), "Delegation not found");
 
@@ -502,8 +503,9 @@ contract MuonNodeStaking is
 
     /**
      * @dev undelegate staking
+     * @notice delegated wallet can renounce delegation from itself
      */
-    function renounceDelegation() external {
+    function renounceDelegation() external whenFunctionNotPaused("renounceDelegation") {
         address staker = delegatorStakers[msg.sender];
         require(staker != address(0), "Delegation not found");
 
