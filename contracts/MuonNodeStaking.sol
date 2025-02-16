@@ -76,11 +76,11 @@ contract MuonNodeStaking is
     // staker address => request time
     mapping(address => uint256) public unstakeReqTimes;
 
-    // staker => delegator
-    mapping(address => address) public stakerDelegators;
+    // staker => delegatee
+    mapping(address => address) public stakerDelegatees;
 
-    // delegator => staker
-    mapping(address => address) public delegatorStakers;
+    // delegatee => staker
+    mapping(address => address) public delegateeStakers;
 
     SchnorrSECP256K1VerifierV2 public verifier;
 
@@ -114,8 +114,8 @@ contract MuonNodeStaking is
         bool isPaused
     );
     event VerifierUpdated(address verifierAddress);
-    event Delegated(address indexed stakerAddress, address delegator);
-    event Undelegated(address indexed stakerAddress, address delegator);
+    event Delegated(address indexed stakerAddress, address delegatee);
+    event Undelegated(address indexed stakerAddress, address delegatee);
     event Unstaked(address indexed stakerAddress, uint256 amount, address recipient);
     event ClaimUnstake(
         uint256 amount,
@@ -473,85 +473,18 @@ contract MuonNodeStaking is
     }
 
     /**
-     * @dev delegate staking to another address/delegator contract
-     * @param _delegator delegator address
-     */
-    function delegate(address _delegator) external whenFunctionNotPaused("delegate") {
-        require(users[msg.sender].tokenId != 0, "Invalid staker");
-        require(stakerDelegators[msg.sender] == address(0), "Staker is already delegated");
-        require(delegatorStakers[_delegator] == address(0), "Delegator is already delegated");
-
-        stakerDelegators[msg.sender] = _delegator;
-        delegatorStakers[_delegator] = msg.sender;
-
-        emit Delegated(msg.sender, _delegator);
-    }
-
-    /**
-     * @dev undelegate staking
-     * @notice delegator can revoke delegation 
-     */
-    function revokeDelegation() external whenFunctionNotPaused("undelegate") {
-        address delegator = stakerDelegators[msg.sender];
-        require(delegator != address(0), "Delegation not found");
-
-        delete stakerDelegators[msg.sender];
-        delete delegatorStakers[delegator];
-
-        emit Undelegated(msg.sender, delegator);
-    }
-
-    /**
-     * @dev undelegate staking
-     * @notice delegated wallet can renounce delegation from itself
-     */
-    function renounceDelegation() external whenFunctionNotPaused("renounceDelegation") {
-        address staker = delegatorStakers[msg.sender];
-        require(staker != address(0), "Delegation not found");
-
-        delete stakerDelegators[staker];
-        delete delegatorStakers[msg.sender];
-
-        emit Undelegated(staker, msg.sender);
-    }
-
-    /**
-     * @dev Allows stakers to unstake their any desired staking amount
+     * @dev Allows stakers/delegatees to unstake
      * @param _amount amount to unstake
      */
     function unstake(
         uint256 _amount
-    ) updateReward(msg.sender) external {
-        _unstake(msg.sender, msg.sender, _amount);
-    }
-
-    /**
-     * @dev Allows delegators to unstake on behalf of stakers
-     * @param _recipient recipient address of unstaked tokens
-     * @param _amount amount to unstake
-     */
-    function delegatorUnstake(
-        address _recipient,
-        uint256 _amount
-    ) external updateReward(stakerDelegators[msg.sender]) {
-        address staker = delegatorStakers[msg.sender];
-        _unstake(staker, _recipient, _amount);
-    }
-
-    /**
-     * 
-     * @notice the exit pending period should be passed
-     */
-    function claimUnstake() external {
-        _claimUnstake(msg.sender, msg.sender);
-    }
-
-    /**
-     * 
-     * @notice the exit pending period should be passed
-     */
-    function delegatorClaimUnstake(address _recipient) external {
-        _claimUnstake(delegatorStakers[msg.sender], _recipient);
+    ) external {
+        address staker = msg.sender;
+        if(users[staker].tokenId == 0) {
+            staker = delegateeStakers[msg.sender];
+            require(users[staker].tokenId != 0, "Invalid staker/delegatee");
+        }
+        _unstake(staker, _amount);
     }
 
     /**
@@ -730,6 +663,51 @@ contract MuonNodeStaking is
         emit FunctionPauseStatusChanged(functionName, pauseStatus);
     }
 
+    /**
+     * @dev delegate staking to another address
+     * @param _staker staker address
+     * @param _delegatee delegatee address
+     */
+    function setDelegation(
+        address _staker,
+        address _delegatee
+    ) external onlyRole(DAO_ROLE) {
+        require(users[_staker].tokenId != 0, "Invalid staker");
+        require(
+            stakerDelegatees[_staker] == address(0), 
+            "Staker is already delegated"
+        );
+        require(
+            delegateeStakers[_delegatee] == address(0), 
+            "Delegatee is already set"
+        );
+
+        stakerDelegatees[_staker] = _delegatee;
+        delegateeStakers[_delegatee] = _staker;
+
+        emit Delegated(_staker, _delegatee);
+    }
+
+    /**
+     * @dev undelegate staking
+     * @param _staker staker address
+     * @param _delegatee delegatee address
+     */
+    function unsetDelegation(
+        address _staker,
+        address _delegatee
+    ) external onlyRole(DAO_ROLE) {
+        require(
+            stakerDelegatees[_staker] == _delegatee,
+            "Not found delegation"
+        );
+
+        delete stakerDelegatees[_staker];
+        delete delegateeStakers[_delegatee];
+
+        emit Undelegated(_staker, _delegatee);
+    }
+
     function migrate(
         address[] calldata _user,
         uint256[] calldata _balance,
@@ -754,6 +732,46 @@ contract MuonNodeStaking is
             emit MuonNodeAdded(_nodeAddress[i], staker, _peerId[i]);
             emit Staked(staker, _balance[i]);
         }
+    }
+
+    /**
+     * 
+     * @notice the exit pending period should be passed
+     */
+    function claimUnstake() public whenFunctionNotPaused("claimUnstake") {
+        address staker = msg.sender;
+        if(users[staker].tokenId == 0) {
+            staker = delegateeStakers[msg.sender];
+            require(users[staker].tokenId != 0, "Invalid staker/delegatee");
+        }
+        require(!lockedStakes[staker], "Stake is locked.");
+        if(msg.sender == staker) {
+            require(
+                unstakeReqTimes[msg.sender] + exitPendingPeriod 
+                    <= block.timestamp,
+                "The unstake time has not been reached yet."
+            );
+        }
+        require(pendingUnstakes[msg.sender] > 0, "No pending unstake");
+
+        uint256 amount = pendingUnstakes[msg.sender];
+
+        delete pendingUnstakes[msg.sender];
+        delete unstakeReqTimes[msg.sender];
+
+        uint256 tokenId = users[staker].tokenId;
+
+        bondedToken.redeemBaseToken(msg.sender, tokenId, amount);
+
+        if(
+            users[staker].balance < minStakeAmount || 
+            users[staker].balance == 0
+        ) {
+            // TODO: fixme
+            // _deactiveMuonNode(staker);
+        }
+
+        emit ClaimUnstake(amount, msg.sender, staker, tokenId);
     }
 
     /**
@@ -847,46 +865,27 @@ contract MuonNodeStaking is
 
     function _unstake(
         address _staker,
-        address _recipient,
         uint256 _amount
-    ) internal {
+    ) internal updateReward(_staker) {
         require(users[_staker].balance >= _amount, "Insufficient balance");
 
         totalStaked -= _amount;
         users[_staker].balance -= _amount;
-        pendingUnstakes[_recipient] += _amount;
-        unstakeReqTimes[_recipient] = block.timestamp;
+        pendingUnstakes[msg.sender] += _amount;
 
-        if(exitPendingPeriod == 0){
-            _claimUnstake(_staker, _recipient);
+        if (msg.sender == _staker) {
+            unstakeReqTimes[msg.sender] = block.timestamp;
+
+            if(exitPendingPeriod == 0) {
+                claimUnstake();
+            }
+
+        } else {
+            // When the unstaker is delegatee, skip the pending period
+            claimUnstake();
         }
 
-        emit Unstaked(_staker, _amount, _recipient);
-    }
-
-    function _claimUnstake(address _staker, address _recipient) internal {
-        require(users[_staker].tokenId != 0, "Invalid staker");
-        require(!lockedStakes[_staker], "Stake is locked.");
-        require(
-            unstakeReqTimes[_recipient] + exitPendingPeriod < block.timestamp,
-            "The unstake time has not been reached yet."
-        );
-        require(pendingUnstakes[_recipient] > 0, "No pending unstake");
-
-        uint256 amount = pendingUnstakes[_recipient];
-
-        delete pendingUnstakes[_recipient];
-        delete unstakeReqTimes[_recipient];
-
-        uint256 tokenId = users[_staker].tokenId;
-
-        if(users[_staker].balance == 0) {
-            _deactiveMuonNode(_staker);
-        }
-
-        bondedToken.redeemBaseToken(_recipient, tokenId, amount);
-
-        emit ClaimUnstake(amount, _recipient, _staker, tokenId);
+        emit Unstaked(_staker, _amount, msg.sender);
     }
 
     function _deactiveMuonNode(
