@@ -491,7 +491,7 @@ contract MuonNodeStaking is
      * @dev undelegate staking
      * @notice delegator can revoke delegation 
      */
-    function revokeDelegation() external whenFunctionNotPaused("undelegate") {
+    function revokeDelegation() external whenFunctionNotPaused("revokeDelegation") {
         address delegator = stakerDelegators[msg.sender];
         require(delegator != address(0), "Delegation not found");
 
@@ -542,7 +542,7 @@ contract MuonNodeStaking is
      * 
      * @notice the exit pending period should be passed
      */
-    function claimUnstake() external {
+    function claimUnstake() external whenFunctionNotPaused("claimUnstake") {
         _claimUnstake(msg.sender, msg.sender);
     }
 
@@ -550,7 +550,9 @@ contract MuonNodeStaking is
      * 
      * @notice the exit pending period should be passed
      */
-    function delegatorClaimUnstake(address _recipient) external {
+    function delegatorClaimUnstake(
+        address _recipient
+    ) external whenFunctionNotPaused("delegatorClaimUnstake") {
         _claimUnstake(delegatorStakers[msg.sender], _recipient);
     }
 
