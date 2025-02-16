@@ -232,6 +232,7 @@ contract BondedToken is
             require(hasRole(REDEEM_ROLE, msg.sender), "Redeem is limited");
         }
 
+        lockedOf[_tokenId][baseToken] -= _amount;
         IEscrow(escrow).redeemTo(_recipient, _amount);
 
         emit Redeem(_tokenId, _recipient, _amount, msg.sender);
