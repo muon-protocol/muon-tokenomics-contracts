@@ -14,12 +14,19 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     IBondedToken public bondedToken;
     address public muonToken;
     address public delegationNodeStaker;
+    uint256 public exitPendingPeriod;
 
     mapping(address => uint256) public balances;
     mapping(address => uint256) public startDates;
     mapping(address => bool) public restake;
     mapping(address => uint256) public userIndexes;
     mapping(address => uint256) public pendingRewards;
+
+    // staker address => amount
+    mapping(address => uint256) public pendingUnstakes;
+
+    // staker address => request time
+    mapping(address => uint256) public unstakeReqTimes;
 
     uint256 public lastDisTime;
 
@@ -32,7 +39,7 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     event Staked(address indexed user, uint256 balance, uint256 amount);
     event Rewarded(address indexed user, uint256 balance, uint256 amount);
     event Unstake(address indexed user, uint256 balance, uint256 amount);
-    event ClaimUnstake(address indexed user);
+    event ClaimUnstake(address indexed user, uint256 amount);
 
     function initialize(
         address _muonTokenAddress,
@@ -254,7 +261,21 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
             startDates[msg.sender] = block.timestamp;
         }
 
-        nodeStaking.delegatorUnstake(msg.sender, _amount);
+        uint256 balance = IERC20Upgradeable(muonToken).balanceOf(
+            address(this)
+        );
+        nodeStaking.unstake(_amount);
+        uint256 receivedAmount = IERC20Upgradeable(muonToken).balanceOf(
+            address(this)
+        ) - balance;
+        require(_amount == receivedAmount, "Invalid received amount");
+
+        pendingUnstakes[msg.sender] = _amount;
+        unstakeReqTimes[msg.sender] = block.timestamp;
+
+        if (exitPendingPeriod == 0) {
+            claimUnstake();
+        }
 
         emit Unstake(msg.sender, balances[msg.sender], _amount);
     }
@@ -262,10 +283,24 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     /**
      * @notice claim pending unstake
      */
-    function claimUnstake() external {
-        nodeStaking.delegatorClaimUnstake(msg.sender);
+    function claimUnstake() public {
+        require(pendingUnstakes[msg.sender] > 0, "No pending unstake");
+        require(
+            unstakeReqTimes[msg.sender] + exitPendingPeriod <= block.timestamp,
+            "The unstake time has not been reached yet."
+        );
 
-        emit ClaimUnstake(msg.sender);
+        uint256 amount = pendingUnstakes[msg.sender];
+
+        delete pendingUnstakes[msg.sender];
+        delete unstakeReqTimes[msg.sender];
+
+        IERC20Upgradeable(muonToken).safeTransfer(
+            msg.sender,
+            amount
+        );
+
+        emit ClaimUnstake(msg.sender, amount);
     }
 
     function calcAmounts(
