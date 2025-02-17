@@ -763,14 +763,6 @@ contract MuonNodeStaking is
 
         bondedToken.redeemBaseToken(msg.sender, tokenId, amount);
 
-        if(
-            users[staker].balance < minStakeAmount || 
-            users[staker].balance == 0
-        ) {
-            // TODO: fixme
-            // _deactiveMuonNode(staker);
-        }
-
         emit ClaimUnstake(amount, msg.sender, staker, tokenId);
     }
 
@@ -867,12 +859,55 @@ contract MuonNodeStaking is
         address _staker,
         uint256 _amount
     ) internal updateReward(_staker) {
-        require(users[_staker].balance >= _amount, "Insufficient balance");
+        address[] memory tokens;
+        tokens[0] = address(muonToken);
 
-        totalStaked -= _amount;
-        users[_staker].balance -= _amount;
+        uint256[] memory lockedAmounts = bondedToken.getLockedOf(
+            users[_staker].tokenId,
+            tokens
+        );
+        uint256 balance = lockedAmounts[0];
+
+        require(balance >= _amount, "Insufficient balance");
+
+        balance -= _amount;
+
+        if(balance < minStakeAmount) {
+            if(users[_staker].balance > 0) {
+                _deactiveMuonNode(_staker);
+            }
+        } else {
+            // calculate new tier & staking balance
+            IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
+                _staker
+            );
+            uint8 currentTier = node.tier;
+            uint8 newTier = currentTier;
+
+            while (newTier > 1) {
+                if(balance > tiersMaxStakeAmount[newTier - 1]) {
+                    break;
+                }
+                newTier = newTier - 1;
+            }
+
+            uint256 amount = balance;
+            uint256 maxStakeAmount = tiersMaxStakeAmount[newTier];
+            if (amount > maxStakeAmount) {
+                amount = maxStakeAmount;
+            }
+
+            totalStaked -= users[_staker].balance;
+            users[_staker].balance = amount;
+            totalStaked += amount;
+
+            if(currentTier != newTier) {
+                nodeManager.setTier(node.id, newTier);
+            }
+        }
+
+        // Set pending unstake
         pendingUnstakes[msg.sender] += _amount;
-
         if (msg.sender == _staker) {
             unstakeReqTimes[msg.sender] = block.timestamp;
 
