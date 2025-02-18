@@ -76,9 +76,6 @@ contract MuonNodeStaking is
     // staker address => request time
     mapping(address => uint256) public unstakeReqTimes;
 
-    // staker => delegatee
-    mapping(address => address) public stakerDelegatees;
-
     // delegatee => staker
     mapping(address => address) public delegateeStakers;
 
@@ -114,8 +111,8 @@ contract MuonNodeStaking is
         bool isPaused
     );
     event VerifierUpdated(address verifierAddress);
-    event Delegated(address indexed stakerAddress, address delegatee);
-    event Undelegated(address indexed stakerAddress, address delegatee);
+    event Delegated(address indexed stakerAddress, address indexed delegatee);
+    event Undelegated(address indexed stakerAddress, address indexed delegatee);
     event Unstaked(address indexed stakerAddress, uint256 amount, address recipient);
     event ClaimUnstake(
         uint256 amount,
@@ -673,16 +670,7 @@ contract MuonNodeStaking is
         address _delegatee
     ) external onlyRole(DAO_ROLE) {
         require(users[_staker].tokenId != 0, "Invalid staker");
-        require(
-            stakerDelegatees[_staker] == address(0), 
-            "Staker is already delegated"
-        );
-        require(
-            delegateeStakers[_delegatee] == address(0), 
-            "Delegatee is already set"
-        );
 
-        stakerDelegatees[_staker] = _delegatee;
         delegateeStakers[_delegatee] = _staker;
 
         emit Delegated(_staker, _delegatee);
@@ -690,22 +678,15 @@ contract MuonNodeStaking is
 
     /**
      * @dev undelegate staking
-     * @param _staker staker address
      * @param _delegatee delegatee address
      */
     function unsetDelegation(
-        address _staker,
         address _delegatee
     ) external onlyRole(DAO_ROLE) {
-        require(
-            stakerDelegatees[_staker] == _delegatee,
-            "Not found delegation"
-        );
-
-        delete stakerDelegatees[_staker];
+        address staker = delegateeStakers[_delegatee];
         delete delegateeStakers[_delegatee];
 
-        emit Undelegated(_staker, _delegatee);
+        emit Undelegated(staker, _delegatee);
     }
 
     function migrate(
