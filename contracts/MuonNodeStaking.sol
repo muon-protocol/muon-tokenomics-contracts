@@ -840,7 +840,7 @@ contract MuonNodeStaking is
         address _staker,
         uint256 _amount
     ) internal updateReward(_staker) {
-        address[] memory tokens;
+        address[] memory tokens = new address[](1);
         tokens[0] = address(muonToken);
 
         uint256[] memory lockedAmounts = bondedToken.getLockedOf(
