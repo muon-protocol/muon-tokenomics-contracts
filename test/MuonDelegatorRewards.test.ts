@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers, upgrades } from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import {
   MuonDelegatorRewards,
   MUON,
@@ -12,7 +12,6 @@ import {
   Escrow,
 } from "../typechain-types";
 import { describe, it, beforeEach } from "mocha";
-import { testDeployLocally } from "../scripts/utils";
 import { BigNumber } from "ethers";
 
 describe("MuonDelegatorRewards", function () {
@@ -451,6 +450,7 @@ describe("MuonDelegatorRewards", function () {
 
       expect(await muonDelegatorRewards.balances(user.address)).to.be.equal(0);
 
+      let delegateTime = await time.latest();
       await muonDelegatorRewards
         .connect(user)
         .delegateToken(amount, user.address, false);
@@ -467,17 +467,39 @@ describe("MuonDelegatorRewards", function () {
       await nodeStaking.connect(nodeStaker).mergeBondedTokens(
         delegationTokenId
       )
-
+      expect((await nodeStaking.users(nodeStaker.address)).balance).to.be.equal(amount.add(
+        ONE.mul(1000)
+      ))
       expect(await nodeStaking.valueOfBondedToken(tokenId)).to.be.equal(amount.add(
         ONE.mul(1000)
       ))
+      const userBalance = await muon.balanceOf(user.address);
 
+      const unstakeTime =  await time.latest();
       await muonDelegatorRewards.connect(user).unstake(
         ONE.mul(50)
       );
 
       expect(await muonDelegatorRewards.balances(user.address)).to.be.equal(
         amount.sub(ONE.mul(50))
+      );
+      expect(await muonDelegatorRewards.startDates(user.address)).to.be.equal(
+        await time.latest()
+      );
+      expect(await muonDelegatorRewards.pendingUnstakes(user.address)).to.be.equal(0);
+      expect(await muonDelegatorRewards.pendingRewards(user.address)).to.be.equal(
+        amount.mul(unstakeTime - delegateTime)
+      );
+
+      expect(await muon.balanceOf(
+        user.address
+      )).to.be.equal(userBalance.add(ONE.mul(50)));
+
+      expect(await nodeStaking.valueOfBondedToken(tokenId)).to.be.equal(
+        amount.add(ONE.mul(1000 - 50))
+      );
+      expect((await nodeStaking.users(nodeStaker.address)).balance).to.be.equal(
+        amount.add(ONE.mul(1000 - 50))
       );
     });
   });
