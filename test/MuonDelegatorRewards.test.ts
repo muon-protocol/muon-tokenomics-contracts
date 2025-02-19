@@ -87,22 +87,27 @@ describe("MuonDelegatorRewards", function () {
   });
 
   beforeEach(async () => {
-    const ESCROW = await ethers.getContractFactory("Escrow");
-    escrow = await ESCROW.connect(admin).deploy() as Escrow;
-
-    const [MUON, bondedPION] = await Promise.all([
+    const [Muon, bondedMUON] = await Promise.all([
       ethers.getContractFactory("MUON"),
       ethers.getContractFactory("BondedMUON"),
     ]);
   
-    muon = (await upgrades.deployProxy(MUON, [])) as MUON;
-    bonMuon = (await upgrades.deployProxy(bondedPION, [
+    muon = (await upgrades.deployProxy(Muon, [])) as MUON;
+    await muon.deployed();
+
+    const Escrow = await ethers.getContractFactory("Escrow");
+    escrow = await Escrow.connect(admin).deploy(muon.address);
+    await escrow.deployed();
+
+
+    bonMuon = (await upgrades.deployProxy(bondedMUON, [
       muon.address,
       treasury.address,
       0,
       0,
       escrow.address
     ])) as BondedMUON;
+    await bonMuon.deployed();
 
     const MuonNodeManager = await ethers.getContractFactory("MuonNodeManager");
     nodeManager = (await upgrades.deployProxy(
@@ -472,7 +477,7 @@ describe("MuonDelegatorRewards", function () {
       );
 
       expect(await muonDelegatorRewards.balances(user.address)).to.be.equal(
-        amount.sub(50)
+        amount.sub(ONE.mul(50))
       );
     });
   });
@@ -485,7 +490,7 @@ describe("MuonDelegatorRewards", function () {
       await muon.connect(user).mint(user.address, pionMintAmount);
       await muon.connect(user).mint(user.address, pionMintAmount);
       await muon.connect(user).approve(bonMuon.address, pionMintAmount);
-      const tokenId = await bonMuon.callStatic.mintAndLock(
+      const tokenId = await bonMuon.connect(user).callStatic.mintAndLock(
         [muon.address],
         [pionMintAmount],
         user.address
@@ -634,7 +639,7 @@ describe("MuonDelegatorRewards", function () {
     it("Owner should be able to withdraw bonToken", async () => {
       await muon.connect(pionMinter).mint(user.address, ONE.mul(100));
       await muon.connect(user).approve(bonMuon.address, ONE.mul(100));
-      const tokenId = await bonMuon.callStatic.mintAndLock(
+      const tokenId = await bonMuon.connect(user).callStatic.mintAndLock(
         [muon.address],
         [ONE.mul(100)],
         user.address
@@ -677,7 +682,7 @@ describe("MuonDelegatorRewards", function () {
     it("Non-owner should not be able to withdraw bonToken", async () => {
       await muon.connect(pionMinter).mint(user.address, ONE.mul(100));
       await muon.connect(user).approve(bonMuon.address, ONE.mul(100));
-      const tokenId = await bonMuon.callStatic.mintAndLock(
+      const tokenId = await bonMuon.connect(user).callStatic.mintAndLock(
         [muon.address],
         [ONE.mul(100)],
         user.address
