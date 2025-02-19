@@ -17,9 +17,9 @@ contract Escrow is AccessControl, IEscrow {
 
     event Redeem(address recipient, uint256 amount);
 
-    function construct(
+    constructor(
         address _token
-    ) public {
+    ) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
 
