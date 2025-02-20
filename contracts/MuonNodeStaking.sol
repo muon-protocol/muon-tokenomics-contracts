@@ -12,8 +12,7 @@ import "./interfaces/IBondedToken.sol";
 
 contract MuonNodeStaking is
     Initializable,
-    AccessControlUpgradeable,
-    MuonClientBase
+    AccessControlUpgradeable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -27,6 +26,7 @@ contract MuonNodeStaking is
 
     bytes32 public constant DAO_ROLE = keccak256("DAO_ROLE");
     bytes32 public constant REWARD_ROLE = keccak256("REWARD_ROLE");
+    bytes32 public constant UPDATE_STAKING_ROLE = keccak256("UPDATE_STAKING_ROLE");
 
     uint256 public totalStaked;
 
@@ -79,6 +79,8 @@ contract MuonNodeStaking is
     // delegatee => staker
     mapping(address => address) public delegateeStakers;
 
+    uint256 public muonAppId;
+    MuonClientBase.PublicKey public muonPublicKey;
     SchnorrSECP256K1VerifierV2 public verifier;
 
 
@@ -86,9 +88,7 @@ contract MuonNodeStaking is
 
     // ======== Events ========
     event Staked(address indexed stakerAddress, uint256 amount);
-    event Withdrawn(address indexed stakerAddress, uint256 tokenId);
     event RewardGot(bytes reqId, address indexed stakerAddress, uint256 amount);
-    event ExitRequested(address indexed stakerAddress);
     event MuonNodeAdded(
         address indexed nodeAddress,
         address indexed stakerAddress,
@@ -102,7 +102,7 @@ contract MuonNodeStaking is
     event ExitPendingPeriodUpdated(uint256 exitPendingPeriod);
     event MinStakeAmountUpdated(uint256 minStakeAmount);
     event MuonAppIdUpdated(uint256 muonAppId);
-    event MuonPublicKeyUpdated(PublicKey muonPublicKey);
+    event MuonPublicKeyUpdated(MuonClientBase.PublicKey muonPublicKey);
     event StakeLockStatusChanged(address indexed stakerAddress, bool locked);
     event StakingTokenUpdated(address indexed token, uint256 multiplier);
     event TierMaxStakeUpdated(uint8 indexed tier, uint256 maxStakeAmount);
@@ -158,7 +158,7 @@ contract MuonNodeStaking is
         address _muonTokenAddress,
         address _nodeManagerAddress,
         uint256 _muonAppId,
-        PublicKey memory _muonPublicKey,
+        MuonClientBase.PublicKey memory _muonPublicKey,
         address _bondedTokenAddress,
         uint256 _totalStaked,
         uint256 _notPaidRewards,
@@ -186,7 +186,7 @@ contract MuonNodeStaking is
         address _muonTokenAddress,
         address _nodeManagerAddress,
         uint256 _muonAppId,
-        PublicKey memory _muonPublicKey,
+        MuonClientBase.PublicKey memory _muonPublicKey,
         address _bondedTokenAddress,
         uint256 _totalStaked,
         uint256 _notPaidRewards,
@@ -209,7 +209,6 @@ contract MuonNodeStaking is
 
         rewardPeriod = 7 days;
 
-        validatePubKey(_muonPublicKey.x);
         muonPublicKey = _muonPublicKey;
         muonAppId = _muonAppId;
 
@@ -357,6 +356,18 @@ contract MuonNodeStaking is
     }
 
     /**
+     * @dev Updates the staking status for the staker.
+     * This function calculates the staked amount based on the locked tokens and their multipliers,
+     * and updates the balance and total staked amount accordingly.
+     * Only callable by staker.
+     */
+    function updateStakingFor(
+        address staker
+    ) onlyRole(UPDATE_STAKING_ROLE) external {
+        _updateStaking(staker);
+    }
+
+    /**
      * @dev Allows the stakers to withdraw their rewards.
      * @param amount The amount of tokens to withdraw.
      * @param reqId The id of the withdrawal request.
@@ -366,7 +377,7 @@ contract MuonNodeStaking is
         uint256 amount,
         uint256 paidRewardPerToken,
         bytes calldata reqId,
-        SchnorrSign calldata signature
+        MuonClientBase.SchnorrSign calldata signature
     ) external whenFunctionNotPaused("getReward") {
         require(amount > 0, "Invalid amount.");
 
@@ -420,16 +431,6 @@ contract MuonNodeStaking is
     }
 
     /**
-     * @dev Allows stakers to request to exit from the network.
-     * Stakers can withdraw the staked amount after the exit pending period has passed.
-     */
-    function requestExit() external {
-        _deactiveMuonNode(msg.sender);
-
-        emit ExitRequested(msg.sender);
-    }
-
-    /**
      * @dev Allows DAO_ROLE to deactive a node.
      * @param stakerAddress The address of the staker.
      */
@@ -437,36 +438,6 @@ contract MuonNodeStaking is
         address stakerAddress
     ) external onlyRole(DAO_ROLE) {
         _deactiveMuonNode(stakerAddress);
-    }
-
-    /**
-     * @dev Allows stakers to withdraw their staked amount after exiting the network and exit pending period has passed.
-     */
-    function withdraw() external whenFunctionNotPaused("withdraw") {
-        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
-            msg.sender
-        );
-        require(node.id != 0, "Node not found.");
-
-        require(
-            !node.active &&
-                (node.endTime + exitPendingPeriod) < block.timestamp,
-            "The exit time has not been reached yet."
-        );
-
-        require(!lockedStakes[msg.sender], "Stake is locked.");
-
-        uint256 tokenId = users[msg.sender].tokenId;
-        require(tokenId != 0, "No staking found.");
-
-        if (users[msg.sender].balance > 0) {
-            totalStaked -= users[msg.sender].balance;
-            users[msg.sender].balance = 0;
-        }
-
-        users[msg.sender].tokenId = 0;
-        bondedToken.safeTransferFrom(address(this), msg.sender, tokenId);
-        emit Withdrawn(msg.sender, tokenId);
     }
 
     /**
@@ -611,7 +582,7 @@ contract MuonNodeStaking is
     }
 
     function setMuonPublicKey(
-        PublicKey memory _muonPublicKey
+        MuonClientBase.PublicKey memory _muonPublicKey
     ) external onlyRole(DAO_ROLE) {
         verifier.validatePubKey(_muonPublicKey.x);
 
@@ -744,6 +715,10 @@ contract MuonNodeStaking is
 
         bondedToken.redeemBaseToken(msg.sender, tokenId, amount);
 
+        if(users[staker].balance == 0) {
+            users[staker].tokenId = 0;
+        }
+
         emit ClaimUnstake(amount, msg.sender, staker, tokenId);
     }
 
@@ -856,6 +831,10 @@ contract MuonNodeStaking is
         if(balance < minStakeAmount) {
             if(users[_staker].balance > 0) {
                 _deactiveMuonNode(_staker);
+                IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
+                    _staker
+                );
+                require(!node.active, "Deactivation of node is failed");
             }
         } else {
             // calculate new tier & staking balance
