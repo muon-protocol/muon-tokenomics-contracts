@@ -715,7 +715,7 @@ contract MuonNodeStaking is
 
         bondedToken.redeemBaseToken(msg.sender, tokenId, amount);
 
-        if(users[staker].balance == 0) {
+        if(valueOfBondedToken(tokenId) == 0) {
             users[staker].tokenId = 0;
         }
 
@@ -815,32 +815,22 @@ contract MuonNodeStaking is
         address _staker,
         uint256 _amount
     ) internal updateReward(_staker) {
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(muonToken);
-
-        uint256[] memory lockedAmounts = bondedToken.getLockedOf(
-            users[_staker].tokenId,
-            tokens
-        );
-        uint256 balance = lockedAmounts[0];
+        uint256 balance = valueOfBondedToken(users[_staker].tokenId);
 
         require(balance >= _amount, "Insufficient balance");
 
         balance -= _amount;
 
+        IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
+            _staker
+        );
         if(balance < minStakeAmount) {
-            if(users[_staker].balance > 0) {
+            if(node.active) {
                 _deactiveMuonNode(_staker);
-                IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
-                    _staker
-                );
                 require(!node.active, "Deactivation of node is failed");
             }
         } else {
             // calculate new tier & staking balance
-            IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
-                _staker
-            );
             uint8 currentTier = node.tier;
             uint8 newTier = currentTier;
 
@@ -851,15 +841,15 @@ contract MuonNodeStaking is
                 newTier = newTier - 1;
             }
 
-            uint256 amount = balance;
+            uint256 newBalance = balance;
             uint256 maxStakeAmount = tiersMaxStakeAmount[newTier];
-            if (amount > maxStakeAmount) {
-                amount = maxStakeAmount;
+            if (newBalance > maxStakeAmount) {
+                newBalance = maxStakeAmount;
             }
 
             totalStaked -= users[_staker].balance;
-            users[_staker].balance = amount;
-            totalStaked += amount;
+            users[_staker].balance = newBalance;
+            totalStaked += newBalance;
 
             if(currentTier != newTier) {
                 nodeManager.setTier(node.id, newTier);
