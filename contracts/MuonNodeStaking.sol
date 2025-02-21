@@ -827,7 +827,6 @@ contract MuonNodeStaking is
         if(balance < minStakeAmount) {
             if(node.active) {
                 _deactiveMuonNode(_staker);
-                require(!node.active, "Deactivation of node is failed");
             }
         } else {
             // calculate new tier & staking balance
