@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IToken.sol";
 import "./interfaces/IBondedToken.sol";
+import "./interfaces/IMuonNodeStaking.sol";
 
 
 contract BoosterV2 is Ownable {
@@ -18,6 +19,8 @@ contract BoosterV2 is Ownable {
     // multiplier * 1e18
     uint256 public boostValue;
 
+    IMuonNodeStaking nodeStaking;
+
     event Boosted(
         uint256 indexed nftId,
         address indexed addr,
@@ -28,11 +31,13 @@ contract BoosterV2 is Ownable {
     constructor(
         address muonTokenAddress,
         address bondedTokenAddress,
-        uint256 _boostValue
+        uint256 _boostValue,
+        address _nodeStaking
     ){
         muonToken = muonTokenAddress;
         bondedToken = IBondedToken(bondedTokenAddress);
         boostValue = _boostValue;
+        nodeStaking = IMuonNodeStaking(_nodeStaking);
     }
 
     function boost(
@@ -53,6 +58,11 @@ contract BoosterV2 is Ownable {
         IToken(muonToken).approve(address(bondedToken), amounts[0]);
         
         bondedToken.lock(nftId, tokens, amounts);
+
+        IMuonNodeStaking.User memory user = nodeStaking.users(msg.sender);
+        if(user.tokenId != 0) {
+            nodeStaking.updateStakingFor(msg.sender);
+        }
         
         emit Boosted(
             nftId,

@@ -25,6 +25,8 @@ interface IMuonNodeStaking {
     
     function claimUnstake() external;
 
+    function updateStakingFor(address staker) external;
+
     function valueOfBondedToken(
         uint256 tokenId
     ) external view returns (uint256); 
