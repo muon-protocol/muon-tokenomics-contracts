@@ -490,6 +490,67 @@ contract MuonNodeStaking is
     }
 
     /**
+     * @dev Allows users to add a Muon node.
+     * The user must have a sufficient staking amount in the BondedToken contract to run a node.
+     * @param nodeAddress The address of the Muon node.
+     * @param peerId The peer ID of the node.
+     * @param stakeAmount amount to stake.
+     */
+    function addMuonNodeByToken(
+        address nodeAddress,
+        string calldata peerId,
+        uint256 stakeAmount
+    ) external whenFunctionNotPaused("addMuonNodeByToken") {
+        require(users[msg.sender].tokenId == 0, "Already exists.");
+
+        uint256 balance = muonToken.balanceOf(address(this));
+        muonToken.safeTransferFrom(msg.sender, address(this), stakeAmount);
+        uint256 receivedAmount = muonToken.balanceOf(
+            address(this)
+        ) - balance;
+
+        require(
+            stakeAmount == receivedAmount,
+            "Invalid received amount"
+        );
+
+        muonToken.safeApprove(
+            address(bondedToken),
+            stakeAmount
+        );
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(muonToken);
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = stakeAmount;
+
+        uint256 tokenId = bondedToken.mintAndLock(
+            tokens, 
+            amounts,
+            address(this)
+        );
+        require(
+            bondedToken.ownerOf(tokenId) == address(this),
+            "Not received the NFT."
+        );
+
+        uint256 amount = valueOfBondedToken(tokenId);
+        require(amount >= minStakeAmount, "Insufficient staking.");
+
+        users[msg.sender].tokenId = tokenId;
+
+        nodeManager.addNode(
+            nodeAddress,
+            msg.sender, // stakerAddress
+            peerId,
+            true // active
+        );
+        
+        emit MuonNodeAdded(nodeAddress, msg.sender, peerId);
+    }
+
+    /**
      * @dev Distributes the specified reward amount to the stakers.
      * Only callable by the REWARD_ROLE.
      * @param reward The reward amount to be distributed.
