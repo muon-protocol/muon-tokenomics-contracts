@@ -12,12 +12,18 @@ contract TokenMigration is Ownable {
 
     address public baseToken;
     address public escrow;
+    uint256 public multiplier; // multiplier * 1e18
 
-    event Migrated(address to, uint256 amount);
+    event Migrated(
+        address to,
+        uint256 fromAmount,
+        uint256 toAmount
+    );
 
-    constructor(address _baseToken, address _escrow) {
+    constructor(address _baseToken, address _escrow, uint256 _multiplier) {
         baseToken = _baseToken;
         escrow = _escrow;
+        multiplier = _multiplier;
     }
 
     function setToken(
@@ -32,12 +38,22 @@ contract TokenMigration is Ownable {
         escrow = _escrow;
     }
 
+    function setMultiplier(
+        uint256 _multiplier
+    ) external onlyOwner {
+        multiplier = _multiplier;
+    }
+
     function migrate(uint256 _amount) external {
         require(_amount > 0, "Invalid amount!");
 
         IToken(baseToken).burnFrom(msg.sender, _amount);
-        IEscrow(escrow).redeemTo(msg.sender, _amount);
+        uint256 convertAmount = (_amount * multiplier) / 1e18;
+        IEscrow(escrow).redeemTo(
+            msg.sender, 
+            convertAmount
+        );
 
-        emit Migrated(msg.sender, _amount);
+        emit Migrated(msg.sender, _amount, convertAmount);
     }
 }
