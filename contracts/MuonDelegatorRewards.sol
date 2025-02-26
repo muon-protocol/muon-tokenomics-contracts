@@ -31,7 +31,7 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     uint256 public lastDisTime;
 
     address[] public allUsers;
-    IMuonNodeStaking nodeStaking;
+    IMuonNodeStaking public nodeStaking;
     uint256 public bonTokenId;
 
     event DelegatedNFT(address indexed user, uint256 nftId);
