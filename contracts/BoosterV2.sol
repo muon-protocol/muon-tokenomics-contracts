@@ -54,7 +54,9 @@ contract BoosterV2 is Ownable {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = (amount * boostValue) / 1e18;
 
-        IToken(muonToken).mint(address(this), amounts[0] - amount);
+        if(amounts[0] - amount > 0) {
+            IToken(muonToken).mint(address(this), amounts[0] - amount);
+        }
         IToken(muonToken).approve(address(bondedToken), amounts[0]);
         
         bondedToken.lock(nftId, tokens, amounts);
