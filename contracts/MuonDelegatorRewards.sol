@@ -45,13 +45,15 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         address _muonTokenAddress,
         address _bondedTokenAddress,
         uint256 _lastDisTime,
-        address _nodeStaker
+        address _nodeStaker,
+        address _nodeStaking
     ) public initializer {
         __MuonDelegatorRewards_init(
             _muonTokenAddress,
             _bondedTokenAddress,
             _lastDisTime,
-            _nodeStaker
+            _nodeStaker,
+            _nodeStaking
         );
     }
 
@@ -59,14 +61,16 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         address _muonTokenAddress,
         address _bondedTokenAddress,
         uint256 _lastDisTime,
-        address _nodeStaker
+        address _nodeStaker,
+        address _nodeStaking
     ) internal onlyInitializing {
         __Ownable_init();
         __MuonDelegatorRewards_init_unchained(
             _muonTokenAddress,
             _bondedTokenAddress,
             _lastDisTime,
-            _nodeStaker
+            _nodeStaker,
+            _nodeStaking
         );
     }
 
@@ -74,12 +78,14 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         address _muonTokenAddress,
         address _bondedTokenAddress,
         uint256 _lastDisTime,
-        address _nodeStaker
+        address _nodeStaker,
+        address _nodeStaking
     ) internal onlyInitializing {
         muonToken = _muonTokenAddress;
         bondedToken = IBondedToken(_bondedTokenAddress);
         lastDisTime = _lastDisTime;
         delegationNodeStaker = _nodeStaker;
+        nodeStaking = IMuonNodeStaking(_nodeStaking);
     }
 
     function distribute(uint256 amount, uint256 time) external onlyOwner {
