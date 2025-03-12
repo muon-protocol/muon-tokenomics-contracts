@@ -446,7 +446,7 @@ contract MuonNodeStaking is
      */
     function unstake(
         uint256 _amount
-    ) external {
+    ) external whenFunctionNotPaused("unstake") {
         address staker = msg.sender;
         if(users[staker].tokenId == 0) {
             staker = delegateeStakers[msg.sender];
