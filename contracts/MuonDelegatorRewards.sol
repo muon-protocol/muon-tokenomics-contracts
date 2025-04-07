@@ -28,6 +28,9 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     // staker address => request time
     mapping(address => uint256) public unstakeReqTimes;
 
+    // stakerAddress => bool
+    mapping(address => bool) public lockedStakes;
+
     uint256 public lastDisTime;
 
     address[] public allUsers;
@@ -246,6 +249,17 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @dev Locks or unlocks the specified delegator's stake.
+     */
+    function setStakeLockStatus(
+        address user,
+        bool lockStatus
+    ) external onlyOwner {
+        require(userIndexes[user] != 0, "User not found");
+        lockedStakes[user] = lockStatus;
+    }
+
+    /**
      * 
      * @param _amount the amount to unstake
      */
@@ -290,6 +304,7 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
      * @notice claim pending unstake
      */
     function claimUnstake() public {
+        require(!lockedStakes[msg.sender], "Stake is locked");
         require(pendingUnstakes[msg.sender] > 0, "No pending unstake");
         require(
             unstakeReqTimes[msg.sender] + exitPendingPeriod <= block.timestamp,
