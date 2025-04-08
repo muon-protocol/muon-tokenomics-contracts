@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity ^0.8.0;
 
 contract SchnorrSECP256K1VerifierV2 {
   // See https://en.bitcoin.it/wiki/Secp256k1 for this constant.
