@@ -150,6 +150,27 @@ describe("MuonNodeStaking", function () {
         nodeStaking.address
       );
 
+      await bondedPion
+      .connect(deployer)
+      .grantRole(
+        await bondedPion.REDEEM_ROLE(),
+        nodeStaking.address
+      );
+    
+    await escrow
+      .connect(deployer)
+      .grantRole(
+        await escrow.REDEEMER_ROLE(),
+        bondedPion.address
+      );
+
+    await pion
+      .connect(deployer)
+      .grantRole(
+        await pion.MINTER_ROLE(),
+        escrow.address
+      );
+
     await bondedPion.connect(deployer).whitelistTokens([pionLp.address]);
 
     await nodeStaking.connect(daoRole).setTierMaxStakeAmount(1, tier1MaxStake);
@@ -419,6 +440,111 @@ describe("MuonNodeStaking", function () {
       expect(userStake2)
         .eq(BigInt(Math.min(value2, maxStakeAmount)))
         .eq(maxStakeAmount);
+    });
+
+    it("should unstake successfully", async () => {
+      const totalStaked1 = (await nodeStaking.totalStaked());
+      const balance1 = (await nodeStaking.users(staker2.address)).balance;
+
+      const stakerBalance = await pion.balanceOf(staker2.address);
+      const tierBefore = (await nodeManager.stakerAddressInfo(staker2.address)).tier;
+
+      const tokenId = (await nodeStaking.users(staker2.address)).tokenId;
+      const lockeds1 = await bondedPion.getLockedOf(tokenId, [
+        pion.address,
+        pionLp.address,
+      ]);
+
+      await nodeStaking.connect(staker2).unstake(
+        ONE.mul(500)
+      );
+
+      const lockeds2 = await bondedPion.getLockedOf(tokenId, [
+        pion.address,
+        pionLp.address,
+      ]);
+
+      const balance2 = (await nodeStaking.users(staker2.address)).balance;
+      const totalStaked2 = (await nodeStaking.totalStaked());
+      const tierAfter = (await nodeManager.stakerAddressInfo(staker2.address)).tier;
+
+      expect(balance2).eq(balance1.sub(ONE.mul(500)));
+      expect(totalStaked2).eq(totalStaked1.sub(ONE.mul(500)));
+
+      expect(await pion.balanceOf(staker2.address)).to.be.equal(
+        stakerBalance
+      );
+      expect(tierAfter).eq(tierBefore);
+      expect(lockeds2[0]).eq(lockeds1[0]);
+
+      expect(await nodeStaking.pendingUnstakes(staker2.address)).to.be.equal(
+        ONE.mul(500)
+      );
+
+    });
+
+    it("should not allow invalid staker to unstake", async () => {
+      await expect(nodeStaking.connect(user1).unstake(
+        ONE.mul(500)
+      )).to.be.revertedWith(
+        "Invalid staker/delegatee"
+      );
+    });
+
+    it("should decrease node tier if needed after unstake", async () => {
+      const balance = (await nodeStaking.users(staker2.address)).balance;
+
+      expect((await nodeManager.stakerAddressInfo(staker2.address)).tier).to.be.eq(tier2);
+
+      const unstakeAmount = balance.sub(tier1MaxStake.sub(ONE.mul(100)));
+      
+      await nodeStaking.connect(staker2).unstake(unstakeAmount);
+
+      expect((await nodeManager.stakerAddressInfo(staker2.address)).tier).to.be.eq(tier1);
+    });
+
+    it("should not claim unstake before pending period", async () => {
+      await nodeStaking.connect(staker2).unstake(
+        ONE.mul(500)
+      );
+      await expect(nodeStaking.connect(staker2).claimUnstake()).to.be.revertedWith(
+        "The unstake time has not been reached yet."
+      );
+    });
+
+    it("should not claim unstake before unstake", async () => {
+      await expect(nodeStaking.connect(staker2).claimUnstake()).to.be.revertedWith(
+        "No pending unstake"
+      );
+    });
+
+    it("should claim unstake after pending period", async () => {
+      await nodeStaking.connect(staker2).unstake(
+        ONE.mul(500)
+      );
+      await evmIncreaseTime(60 * 60 * 24 * 7);
+
+      const muonBalance = await pion.balanceOf(staker2.address);
+
+      const tokenId = (await nodeStaking.users(staker2.address)).tokenId;
+      const lockeds1 = await bondedPion.getLockedOf(tokenId, [
+        pion.address,
+        pionLp.address,
+      ]);
+
+      await nodeStaking.connect(staker2).claimUnstake();
+
+      const lockeds2 = await bondedPion.getLockedOf(tokenId, [
+        pion.address,
+        pionLp.address,
+      ]);
+
+      expect(await pion.balanceOf(staker2.address)).to.be.equal(
+        muonBalance.add(ONE.mul(500))
+      );
+
+      expect(lockeds2[0]).eq(lockeds1[0].sub(ONE.mul(500)));
+
     });
   });
 
