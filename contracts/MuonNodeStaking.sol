@@ -891,7 +891,8 @@ contract MuonNodeStaking is
             }
         } else {
             users[_staker].balance = balance;
-            
+            totalStaked -= balance;
+
             // calculate new tier & staking balance
             uint8 currentTier = node.tier;
             uint8 newTier = currentTier;
