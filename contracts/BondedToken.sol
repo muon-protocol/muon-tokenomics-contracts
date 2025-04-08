@@ -83,6 +83,8 @@ contract BondedToken is
 
     event PublicTransferStatusUpdated(bool publicTransferStatus);
 
+    event PublicRedeemStatusUpdated(bool publicRedeemStatus);
+
     event TreasuryUpdated(address treasury);
 
     event EscrowUpdated(address escrow);
@@ -169,6 +171,15 @@ contract BondedToken is
         require(_treasury != address(0), "Zero Address");
         treasury = _treasury;
         emit TreasuryUpdated(_treasury);
+    }
+
+    /// @notice enable/disable public redeem
+    /// @param _isPublicRedeemEnabled the status of public redeem
+    function setPublicRedeem(
+        bool _isPublicRedeemEnabled
+    ) external onlyOwner {
+        isPublicRedeemEnabled = _isPublicRedeemEnabled;
+        emit PublicRedeemStatusUpdated(_isPublicRedeemEnabled);
     }
 
     /// @notice set escrow address
