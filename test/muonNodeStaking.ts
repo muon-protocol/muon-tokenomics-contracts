@@ -8,8 +8,9 @@ import {
   MuonNodeStaking,
   PIONtest,
   PIONlpTest,
-  BondedPION,
+  BondedMUON,
   SchnorrSECP256K1VerifierV2,
+  Escrow
 } from "../typechain-types";
 
 describe("MuonNodeStaking", function () {
@@ -26,6 +27,7 @@ describe("MuonNodeStaking", function () {
   let staker3: Signer;
   let user1: Signer;
   let treasury: Signer;
+  let escrow: Escrow;
 
   const peerId1 = "QmQ28Fae738pmSuhQPYtsDtwU8pKYPPgf76pSN61T3APh1";
   const peerId2 = "QmQ28Fae738pmSuhQPYtsDtwU8pKYPPgf76pSN61T3APh2";
@@ -35,7 +37,7 @@ describe("MuonNodeStaking", function () {
   let pion: PIONtest;
   let pionLp: PIONlpTest;
   let nodeStaking: MuonNodeStaking;
-  let bondedPion: BondedPION;
+  let bondedPion: BondedMUON;
   let verifier: SchnorrSECP256K1VerifierV2;
   const thirtyDays = 2592000;
   const muonTokenMultiplier = ONE;
@@ -80,15 +82,22 @@ describe("MuonNodeStaking", function () {
     pionLp = await PIONlpTest.connect(deployer).deploy();
     await pionLp.deployed();
 
-    const BondedPION = await ethers.getContractFactory("BondedPION");
+    const Escrow = await ethers.getContractFactory("Escrow");
+    escrow = await Escrow.connect(deployer).deploy(pion.address);
+    await escrow.deployed();
+
+    const BondedPION = await ethers.getContractFactory("BondedMUON");
     bondedPion = await upgrades.deployProxy(BondedPION, [
       pion.address,
       treasury.address,
+      0,
+      0,
+      escrow.address
     ]);
     await bondedPion.deployed();
 
     const MuonNodeManager = await ethers.getContractFactory("MuonNodeManager");
-    nodeManager = await upgrades.deployProxy(MuonNodeManager, []);
+    nodeManager = await upgrades.deployProxy(MuonNodeManager, [0, 0]);
     await nodeManager.deployed();
 
     const SchnorrSECP256K1VerifierV2 = await ethers.getContractFactory("SchnorrSECP256K1VerifierV2");
@@ -102,6 +111,12 @@ describe("MuonNodeStaking", function () {
       muonAppId,
       muonPublicKey,
       bondedPion.address,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
     ]);
     await nodeStaking.deployed();
 
