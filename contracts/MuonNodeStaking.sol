@@ -126,7 +126,7 @@ contract MuonNodeStaking is
      * @dev Modifier to make a function callable only when the contract is not paused.
      */
     modifier whenFunctionNotPaused(string memory functionName) {
-        require(!functionPauseStatus[functionName], "Function 1 is paused.");
+        require(!functionPauseStatus[functionName], "Function is paused.");
         _;
     }
 
@@ -204,10 +204,10 @@ contract MuonNodeStaking is
         nodeManager = IMuonNodeManager(_nodeManagerAddress);
         bondedToken = IBondedToken(_bondedTokenAddress);
 
-        exitPendingPeriod = 7 days;
+        exitPendingPeriod = 14 days;
         minStakeAmount = 500 ether;
 
-        rewardPeriod = 7 days;
+        rewardPeriod = 14 days;
 
         muonPublicKey = _muonPublicKey;
         muonAppId = _muonAppId;
