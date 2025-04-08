@@ -126,7 +126,7 @@ contract MuonNodeStaking is
      * @dev Modifier to make a function callable only when the contract is not paused.
      */
     modifier whenFunctionNotPaused(string memory functionName) {
-        require(!functionPauseStatus[functionName], "Function is paused.");
+        require(!functionPauseStatus[functionName], "Function 1 is paused.");
         _;
     }
 
