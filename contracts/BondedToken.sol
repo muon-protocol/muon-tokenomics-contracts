@@ -237,7 +237,7 @@ contract BondedToken is
         address _recipient,
         uint256 _tokenId,
         uint256 _amount
-    ) external {
+    ) external whenNotPaused {
         require(_amount > 0, "Invalid amount");
         require(
             lockedOf[_tokenId][baseToken] >= _amount,
@@ -253,6 +253,7 @@ contract BondedToken is
         }
 
         lockedOf[_tokenId][baseToken] -= _amount;
+        totalLocked[baseToken] -= _amount;
         IEscrow(escrow).redeemTo(_recipient, _amount);
 
         emit Redeem(_tokenId, _recipient, _amount, msg.sender);
