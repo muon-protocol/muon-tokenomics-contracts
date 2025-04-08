@@ -85,6 +85,8 @@ contract BondedToken is
 
     event TreasuryUpdated(address treasury);
 
+    event EscrowUpdated(address escrow);
+
     event Redeem(uint256 tokenId, address to, uint256 amount, address redeemer);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -167,6 +169,13 @@ contract BondedToken is
         require(_treasury != address(0), "Zero Address");
         treasury = _treasury;
         emit TreasuryUpdated(_treasury);
+    }
+
+    /// @notice set escrow address
+    /// @param _escrow new escrow address
+    function setEscrow(address _escrow) external onlyOwner {
+        escrow = _escrow;
+        emit EscrowUpdated(_escrow);
     }
 
     /// @notice mints a new NFT for requested address and locks tokens for that NFT
