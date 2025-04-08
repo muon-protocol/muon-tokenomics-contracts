@@ -12,6 +12,7 @@ import {
   SchnorrSECP256K1VerifierV2,
   Escrow
 } from "../typechain-types";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("MuonNodeStaking", function () {
   const ONE = ethers.utils.parseEther("1");
@@ -458,6 +459,7 @@ describe("MuonNodeStaking", function () {
       await nodeStaking.connect(staker2).unstake(
         ONE.mul(500)
       );
+      const unstakeTime =  await time.latest();
 
       const lockeds2 = await bondedPion.getLockedOf(tokenId, [
         pion.address,
@@ -479,6 +481,9 @@ describe("MuonNodeStaking", function () {
 
       expect(await nodeStaking.pendingUnstakes(staker2.address)).to.be.equal(
         ONE.mul(500)
+      );
+      expect(await nodeStaking.unstakeReqTimes(staker2.address)).to.be.equal(
+        unstakeTime
       );
 
     });
