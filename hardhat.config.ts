@@ -48,8 +48,18 @@ const networks = {
     accounts: [process.env.PRIVATE_KEY || missing_privateKey()]
   },
   bsc: {
-    url: `https://rpc.ankr.com/bsc/${process.env.ANKR_KEY}`,
+    url: `https://binance.llamarpc.com`,
     chainId: 56,
+    accounts: [process.env.PRIVATE_KEY || missing_privateKey()]
+  },
+  avalancheFujiTestnet: {
+    url: `https://avalanche-fuji-c-chain-rpc.publicnode.com`,
+    chainId: 43113,
+    accounts: [process.env.PRIVATE_KEY || missing_privateKey()]
+  },
+  avalanche: {
+    url: `https://avalanche-c-chain-rpc.publicnode.com`,
+    chainId: 43114,
     accounts: [process.env.PRIVATE_KEY || missing_privateKey()]
   }
 }
@@ -134,6 +144,8 @@ module.exports = {
       ftm: process.env.FTMSCAN_KEY,
       polygon: process.env.POLYGONSCAN_KEY,
       bsc: process.env.BSCSCAN_KEY,
+      avalancheFujiTestnet: process.env.AVALANCHE_KEY,
+      avalanche: process.env.AVALANCHE_KEY,
     },
     customChains: [
       {
