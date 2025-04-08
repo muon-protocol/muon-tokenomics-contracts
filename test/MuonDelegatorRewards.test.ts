@@ -171,6 +171,7 @@ describe("MuonDelegatorRewards", function () {
       bonMuon.address,
       0,
       nodeStaker.address,
+      nodeStaking.address
     ])) as MuonDelegatorRewards;
     await muonDelegatorRewards.deployed();
 
