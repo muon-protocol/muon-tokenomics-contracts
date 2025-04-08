@@ -135,6 +135,10 @@ describe("MuonNodeStaking", function () {
         [muonTokenMultiplier, muonLpTokenMultiplier]
       );
 
+      await nodeStaking
+        .connect(daoRole)
+        .setRewardPeriod(thirtyDays);
+
     await nodeStaking
       .connect(daoRole)
       .setVerifier(verifier.address);
@@ -424,7 +428,7 @@ describe("MuonNodeStaking", function () {
       // set initial reward as a multiplier of 30 days and total stake to make sure there is no leftover
       const initialReward = (thirtyDays * totalStaked) / 10 ** 18;
       await distributeRewards(initialReward);
-      const rewardPeriod = await nodeStaking.REWARD_PERIOD();
+      const rewardPeriod = await nodeStaking.rewardPeriod();
       expect(rewardPeriod).to.be.equal(60 * 60 * 24 * 30);
 
       const expectedRewardRate = initialReward / rewardPeriod;
@@ -573,7 +577,7 @@ describe("MuonNodeStaking", function () {
       const distributeTimestamp = (await ethers.provider.getBlock("latest"))
         .timestamp;
 
-      const rewardPeriod = await nodeStaking.REWARD_PERIOD();
+      const rewardPeriod = await nodeStaking.rewardPeriod();
       let expectedRewardRate = initialReward / rewardPeriod;
       let actualRewardRate = await nodeStaking.rewardRate();
       expect(expectedRewardRate).to.be.equal(actualRewardRate);
