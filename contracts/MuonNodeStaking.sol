@@ -613,6 +613,12 @@ contract MuonNodeStaking is
 
     // ======== DAO functions ========
 
+    function setTotalStaked(
+        uint256 _totalStaked
+    ) external onlyRole(DAO_ROLE) {
+        totalStaked = _totalStaked;
+    }
+    
     function setExitPendingPeriod(
         uint256 _exitPendingPeriod
     ) external onlyRole(DAO_ROLE) {
