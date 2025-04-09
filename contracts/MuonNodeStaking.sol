@@ -856,7 +856,7 @@ contract MuonNodeStaking is
         uint256 tokenId = users[stakerAddress].tokenId;
         require(tokenId != 0, "No staking found.");
 
-        uint256 amount = valueOfBondedToken(tokenId);
+        uint256 amount = valueOfBondedToken(tokenId) - pendingUnstakes[stakerAddress];
         require(amount >= minStakeAmount, "Insufficient staking.");
 
         uint256 maxStakeAmount = tiersMaxStakeAmount[node.tier];

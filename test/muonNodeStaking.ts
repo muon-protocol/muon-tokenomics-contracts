@@ -523,11 +523,20 @@ describe("MuonNodeStaking", function () {
       );
     });
 
+    it("should set balance correctly after unstake & update staking", async () => {
+      const balance1 = (await nodeStaking.users(staker2.address)).balance;
+      await nodeStaking.connect(staker2).unstake(
+        ONE.mul(500)
+      );
+      await nodeStaking.connect(staker2).updateStaking();
+      expect((await nodeStaking.users(staker2.address)).balance).to.be.eq(balance1.sub(ONE.mul(500)));
+    });
+
     it("should claim unstake after pending period", async () => {
       await nodeStaking.connect(staker2).unstake(
         ONE.mul(500)
       );
-      await evmIncreaseTime(60 * 60 * 24 * 7);
+      await evmIncreaseTime(60 * 60 * 24 * 14);
 
       const muonBalance = await pion.balanceOf(staker2.address);
 
