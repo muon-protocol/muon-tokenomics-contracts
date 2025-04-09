@@ -239,6 +239,10 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         bonTokenId = _tokenId;
     }
 
+    function setExitPendingPeriod(uint256 _pendingPeriod) external onlyOwner {
+        exitPendingPeriod = _pendingPeriod;
+    }
+
     function withdrawBonToken(address _to) external onlyOwner {
         bondedToken.safeTransferFrom(address(this), _to, bonTokenId);
         bonTokenId = bondedToken.mint(address(this));
