@@ -52,4 +52,8 @@ contract BondedMUON is BondedToken {
     function setTokenIdCounter(uint256 _tokenIdCounter) external onlyOwner {
         tokenIdCounter = _tokenIdCounter;
     }
+
+    function setTotalLocked(address _token, uint256 _totalLocked) external onlyOwner {
+        totalLocked[_token] = _totalLocked;
+    }
 }
