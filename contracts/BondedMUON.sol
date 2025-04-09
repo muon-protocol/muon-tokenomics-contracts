@@ -43,7 +43,13 @@ contract BondedMUON is BondedToken {
 
             amounts[0] = _balance[i];
 
+            tokenIdCounter++;
+
             emit Locked(msg.sender, nftId, tokens, amounts);
         }
+    }
+
+    function setTokenIdCounter(uint256 _tokenIdCounter) external onlyOwner {
+        tokenIdCounter = _tokenIdCounter;
     }
 }
