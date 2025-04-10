@@ -585,6 +585,7 @@ describe("MuonDelegatorRewards", function () {
 
       expect(await muon.balanceOf(user.address)).to.be.eq(userBalance.add(ONE.mul(50)));
       expect(await muon.balanceOf(muonDelegatorRewards.address)).to.be.eq(delegationBalance);
+      expect(await muonDelegatorRewards.pendingUnstakes(user.address)).to.be.eq(0);
 
       await expect(muonDelegatorRewards.connect(user).claimUnstake()).to.be.revertedWith(
         "No pending unstake"
@@ -829,6 +830,28 @@ describe("MuonDelegatorRewards", function () {
         muonDelegatorRewards.address
       );
       expect(await muonDelegatorRewards.bonTokenId()).to.be.equal(1);
+    });
+
+    it("Non-owner should not be able to withdraw muon tokens/ethers", async () => {
+      await muon.connect(admin).mint(muonDelegatorRewards.address, ONE.mul(1000));
+
+      const balance = await muon.balanceOf(muonDelegatorRewards.address);
+      const etherBalance = await ethers.provider.getBalance(muonDelegatorRewards.address); 
+
+      await expect(muonDelegatorRewards.connect(user).adminWithdraw(
+        ONE.mul(10), admin.address, muon.address
+      )).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await expect(muonDelegatorRewards.connect(user).adminWithdraw(
+        ONE.mul(10), user.address, muon.address
+      )).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await expect(muonDelegatorRewards.connect(user).adminWithdraw(
+        ONE.mul(10), admin.address, ethers.constants.AddressZero
+      )).to.be.revertedWith("Ownable: caller is not the owner");
+
+      expect(await muon.balanceOf(muonDelegatorRewards.address)).to.be.eq(balance);
+      expect(await ethers.provider.getBalance(muonDelegatorRewards.address)).to.be.eq(etherBalance);
     });
   });
 
