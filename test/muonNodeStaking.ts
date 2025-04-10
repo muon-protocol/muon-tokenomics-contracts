@@ -46,8 +46,8 @@ describe("MuonNodeStaking", function () {
   const muonAppId =
     "1566432988060666016333351531685287278204879617528298155619493815104572633831";
   const muonPublicKey = {
-    x: "0x708f698d97949cd4385f02b1cc5283d394e9a7da68e3b6d2871c830b0751a5bb",
-    parity: 1,
+    x: "0x5c15c840b5d346900a11e42c2a64b21b5931180868b9c5094c618f183e00696c",
+    parity: 0,
   };
 
   const tier1 = 1;
@@ -754,7 +754,7 @@ describe("MuonNodeStaking", function () {
     });
   });
 
-  describe("withdraw", function () {
+  describe("Get reward", function () {
     let skipMuonSig = Boolean(process.env.SKIP_MUON) || false;
     it("should prohibit non-stakers from withdrawing", async function () {
       if(skipMuonSig) {
@@ -1030,7 +1030,7 @@ describe("MuonNodeStaking", function () {
       );
     });
 
-    it("should enable DAO_ROLE to deactive nodes then stakers hsould be able to withdraw their stake and rewards after the lock period", async function () {
+    it("should enable DAO_ROLE to deactive nodes then stakers should be able to withdraw their stake and rewards after the lock period", async function () {
       // Distribute rewards
       const initialReward = thirtyDays * 3000;
       await distributeRewards(initialReward);
@@ -1088,7 +1088,7 @@ describe("MuonNodeStaking", function () {
       expect(await bondedPion.ownerOf(1)).eq(nodeStaking.address);
 
       // withdraw
-      await nodeStaking.connect(staker1).withdraw();
+      await nodeStaking.connect(staker1).unstake(balance2);
 
       const u3 = await nodeStaking.users(staker1.address);
       expect(u3.balance).eq(0);
