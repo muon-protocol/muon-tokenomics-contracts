@@ -559,6 +559,14 @@ describe("MuonDelegatorRewards", function () {
   
       expect(await muon.balanceOf(user.address)).to.be.eq(userBalance);
       expect(await muon.balanceOf(muonDelegatorRewards.address)).to.be.eq(delegationBalance);
+
+      await muonDelegatorRewards.connect(user).unstake(
+        await muonDelegatorRewards.balances(user.address)
+      );
+
+      await expect(muonDelegatorRewards.connect(user).unstake(
+        ONE
+      )).to.be.revertedWith("Insufficient balance");
     });
 
     it("should not be able to claim unstakes more", async () => {
