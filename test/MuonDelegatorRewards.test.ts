@@ -35,6 +35,7 @@ describe("MuonDelegatorRewards", function () {
   let user4: SignerWithAddress;
   let pionMinter: SignerWithAddress;
   let node1: SignerWithAddress;
+  let tokenId: BigNumber;
   const pionMintAmount = ethers.utils.parseEther("100000");
   const DelegateAmount = ethers.utils.parseEther("10");
 
@@ -54,6 +55,11 @@ describe("MuonDelegatorRewards", function () {
 
   const userStartDates = [1729666262, 1727074262, 1724395862, 1721717462];
   const userReStakes = [false, false, true, true];
+
+  const evmIncreaseTime = async (amount) => {
+    await ethers.provider.send("evm_increaseTime", [amount]);
+    await ethers.provider.send("evm_mine", []);
+  };
 
   const mintBondedMuon = async (
     muonAmount: BigNumber,
@@ -213,6 +219,25 @@ describe("MuonDelegatorRewards", function () {
 
     MINTER_ROLE = await muon.MINTER_ROLE();
     await muon.connect(admin).grantRole(MINTER_ROLE, pionMinter.address);
+
+
+    tokenId = await mintBondedMuon(ONE.mul(1000), nodeStaker);
+    await bonMuon.connect(nodeStaker).approve(nodeStaking.address, tokenId);
+
+    await nodeStaking.connect(nodeStaker).addMuonNode(
+      node1.address, 
+      "QmQ28Fae738pmSuhQPYtsDtwU8pKYPPgf76pSN61T3APh1", 
+      tokenId
+    );
+
+    await nodeStaking.connect(admin).setMuonNodeTier(nodeStaker.address, 1);
+
+    await nodeStaking.connect(admin)
+        .setDelegation(nodeStaker.address, muonDelegatorRewards.address);
+
+      
+    await muonDelegatorRewards.connect(admin).setExitPendingPeriod(1209600);  
+
   });
 
   describe("Delegate Token", async () => {
@@ -424,37 +449,25 @@ describe("MuonDelegatorRewards", function () {
   });
 
   describe("Unstake", async () => {
-    it("should unstake successfully", async () => {
-      const tokenId = await mintBondedMuon(ONE.mul(1000), nodeStaker);
-      await bonMuon.connect(nodeStaker).approve(nodeStaking.address, tokenId);
-
-      await nodeStaking.connect(nodeStaker).addMuonNode(
-        node1.address, 
-        "QmQ28Fae738pmSuhQPYtsDtwU8pKYPPgf76pSN61T3APh1", 
-        tokenId
-      );
-
-      await nodeStaking.connect(admin).setMuonNodeTier(nodeStaker.address, 1);
-
-      expect(await nodeStaking.valueOfBondedToken(
-        tokenId
-      )).to.be.equal(ONE.mul(1000));
-
-      await nodeStaking.connect(admin)
-        .setDelegation(nodeStaker.address, muonDelegatorRewards.address);
-
-      let amount = ONE.mul(500);
+    let amount: BigNumber;
+    let delegateTime: number;
+    beforeEach(async () => {
+      amount = ONE.mul(500);
       await muon.connect(admin).mint(user.address, amount);
       await muon
         .connect(user)
         .approve(muonDelegatorRewards.address, amount);
 
-      expect(await muonDelegatorRewards.balances(user.address)).to.be.equal(0);
-
-      let delegateTime = await time.latest();
+      delegateTime = await time.latest()
       await muonDelegatorRewards
         .connect(user)
         .delegateToken(amount, user.address, false);
+    });
+    it("should unstake immediately successfully", async () => {
+      await muonDelegatorRewards.connect(admin).setExitPendingPeriod(0);  
+      expect(await nodeStaking.valueOfBondedToken(
+        tokenId
+      )).to.be.equal(ONE.mul(1000));
 
       expect(await muonDelegatorRewards.balances(user.address)).to.be.equal(amount);
 
@@ -501,6 +514,80 @@ describe("MuonDelegatorRewards", function () {
       );
       expect((await nodeStaking.users(nodeStaker.address)).balance).to.be.equal(
         amount.add(ONE.mul(1000 - 50))
+      );
+    });
+
+    it("should not receive token immediately if pending period is set", async () => {
+      const userBalance = await muon.balanceOf(user.address);
+      const delegationBalance = await muon.balanceOf(muonDelegatorRewards.address);
+
+      await muonDelegatorRewards.connect(user).unstake(
+        ONE.mul(50)
+      );
+
+      expect(await muon.balanceOf(user.address)).to.be.eq(userBalance);
+      expect(await muon.balanceOf(muonDelegatorRewards.address)).to.be.eq(delegationBalance.add(ONE.mul(50)));
+
+      expect(await muonDelegatorRewards.balances(user.address)).to.be.equal(
+        amount.sub(ONE.mul(50))
+      );
+    });
+
+    it("should not be able to claim unstakes before pending period", async () => {
+      const userBalance = await muon.balanceOf(user.address);
+      const delegationBalance = await muon.balanceOf(muonDelegatorRewards.address);
+  
+      await muonDelegatorRewards.connect(user).unstake(
+        ONE.mul(50)
+      );
+  
+      await expect(muonDelegatorRewards.connect(user).claimUnstake()).to.be.revertedWith(
+        "The unstake time has not been reached yet."
+      );
+
+      expect(await muon.balanceOf(user.address)).to.be.eq(userBalance);
+      expect(await muon.balanceOf(muonDelegatorRewards.address)).to.be.eq(delegationBalance.add(ONE.mul(50)));
+    });
+
+    it("should not be able to unstake more than it's balance", async () => {
+      const userBalance = await muon.balanceOf(user.address);
+      const delegationBalance = await muon.balanceOf(muonDelegatorRewards.address);
+  
+      await expect(muonDelegatorRewards.connect(user).unstake(
+        (await muonDelegatorRewards.balances(user.address)).add(1)
+      )).to.be.revertedWith("Insufficient balance");
+  
+      expect(await muon.balanceOf(user.address)).to.be.eq(userBalance);
+      expect(await muon.balanceOf(muonDelegatorRewards.address)).to.be.eq(delegationBalance);
+    });
+
+    it("should not be able to claim unstakes more", async () => {
+      let amount = ONE.mul(500);
+      await muon.connect(admin).mint(user.address, amount);
+      await muon
+        .connect(user)
+        .approve(muonDelegatorRewards.address, amount);
+  
+      await muonDelegatorRewards
+        .connect(user)
+        .delegateToken(amount, user.address, false);
+  
+      const userBalance = await muon.balanceOf(user.address);
+      const delegationBalance = await muon.balanceOf(muonDelegatorRewards.address);
+  
+      await muonDelegatorRewards.connect(user).unstake(
+        ONE.mul(50)
+      );
+      
+      await evmIncreaseTime(60 * 60 * 24 * 14);
+
+      await muonDelegatorRewards.connect(user).claimUnstake();
+
+      expect(await muon.balanceOf(user.address)).to.be.eq(userBalance.add(ONE.mul(50)));
+      expect(await muon.balanceOf(muonDelegatorRewards.address)).to.be.eq(delegationBalance);
+
+      await expect(muonDelegatorRewards.connect(user).claimUnstake()).to.be.revertedWith(
+        "No pending unstake"
       );
     });
   });
