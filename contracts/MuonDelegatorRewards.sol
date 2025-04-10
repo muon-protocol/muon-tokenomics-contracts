@@ -278,7 +278,7 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
             if (startDates[msg.sender] > lastDisTime) {
                 userSecs = block.timestamp - startDates[msg.sender];
             }
-            pendingRewards[msg.sender] = balances[msg.sender] * userSecs;
+            pendingRewards[msg.sender] = (balances[msg.sender] - pendingUnstakes[msg.sender]) * userSecs;
 
             // Change the balance and start date
             balances[msg.sender] -= _amount;
@@ -294,7 +294,7 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         ) - balance;
         require(_amount == receivedAmount, "Invalid received amount");
 
-        pendingUnstakes[msg.sender] = _amount;
+        pendingUnstakes[msg.sender] += _amount;
         unstakeReqTimes[msg.sender] = block.timestamp;
 
         if (exitPendingPeriod == 0) {
