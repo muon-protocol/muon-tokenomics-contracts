@@ -517,6 +517,24 @@ describe("MuonDelegatorRewards", function () {
       );
     });
 
+    it("should calculate pending unstake correctly", async () => {
+      await muonDelegatorRewards.connect(user).unstake(
+        ONE.mul(50)
+      );
+  
+      expect(
+        await muonDelegatorRewards.connect(user).pendingUnstakes(user.address)
+      ).to.be.eq(ONE.mul(50));
+
+      await muonDelegatorRewards.connect(user).unstake(
+        ONE.mul(50)
+      );
+
+      expect(
+        await muonDelegatorRewards.connect(user).pendingUnstakes(user.address)
+      ).to.be.eq(ONE.mul(100));
+    });
+
     it("should not receive token immediately if pending period is set", async () => {
       const userBalance = await muon.balanceOf(user.address);
       const delegationBalance = await muon.balanceOf(muonDelegatorRewards.address);

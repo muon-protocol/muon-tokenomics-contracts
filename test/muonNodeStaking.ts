@@ -486,6 +486,13 @@ describe("MuonNodeStaking", function () {
         unstakeTime
       );
 
+      await nodeStaking.connect(staker2).unstake(
+        ONE.mul(50)
+      );
+      expect(await nodeStaking.pendingUnstakes(staker2.address)).to.be.equal(
+        ONE.mul(550)
+      );
+
     });
 
     it("should not allow invalid staker to unstake", async () => {
