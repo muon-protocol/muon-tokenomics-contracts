@@ -896,9 +896,6 @@ contract MuonNodeStaking is
                 _deactiveMuonNode(_staker);
             }
         } else {
-            totalStaked -= _amount;
-            users[_staker].balance = balance;
-            
             // calculate new tier & staking balance
             uint8 currentTier = node.tier;
             uint8 newTier = currentTier;
@@ -913,6 +910,16 @@ contract MuonNodeStaking is
             if(currentTier != newTier) {
                 nodeManager.setTier(node.id, newTier);
             }
+
+            uint256 newBalance = balance;
+            uint256 maxStakeAmount = tiersMaxStakeAmount[newTier];
+            if (newBalance > maxStakeAmount) {
+                 newBalance = maxStakeAmount;
+            }
+
+            totalStaked -= users[_staker].balance;
+            users[_staker].balance = newBalance;
+            totalStaked += newBalance;
         }
 
         // Set pending unstake
