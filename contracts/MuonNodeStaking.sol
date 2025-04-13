@@ -891,35 +891,35 @@ contract MuonNodeStaking is
         IMuonNodeManager.Node memory node = nodeManager.stakerAddressInfo(
             _staker
         );
-        if(balance < minStakeAmount) {
-            if(node.active) {
+        if(node.active){
+            if(balance < minStakeAmount) {
                 _deactiveMuonNode(_staker);
-            }
-        } else {
-            // calculate new tier & staking balance
-            uint8 currentTier = node.tier;
-            uint8 newTier = currentTier;
+            } else {
+                // calculate new tier & staking balance
+                uint8 currentTier = node.tier;
+                uint8 newTier = currentTier;
 
-            while (newTier > 1) {
-                if(balance > tiersMaxStakeAmount[newTier - 1]) {
-                    break;
+                while (newTier > 1) {
+                    if(balance > tiersMaxStakeAmount[newTier - 1]) {
+                        break;
+                    }
+                    newTier = newTier - 1;
                 }
-                newTier = newTier - 1;
-            }
 
-            if(currentTier != newTier) {
-                nodeManager.setTier(node.id, newTier);
-            }
+                if(currentTier != newTier) {
+                    nodeManager.setTier(node.id, newTier);
+                }
 
-            uint256 newBalance = balance;
-            uint256 maxStakeAmount = tiersMaxStakeAmount[newTier];
-            if (newBalance > maxStakeAmount) {
-                 newBalance = maxStakeAmount;
-            }
+                uint256 newBalance = balance;
+                uint256 maxStakeAmount = tiersMaxStakeAmount[newTier];
+                if (newBalance > maxStakeAmount) {
+                    newBalance = maxStakeAmount;
+                }
 
-            totalStaked -= users[_staker].balance;
-            users[_staker].balance = newBalance;
-            totalStaked += newBalance;
+                totalStaked -= users[_staker].balance;
+                users[_staker].balance = newBalance;
+                totalStaked += newBalance;
+            }
         }
 
         // Set pending unstake
