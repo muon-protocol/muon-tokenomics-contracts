@@ -23,9 +23,11 @@ describe("MuonNodeStaking", function () {
   let node1: Signer;
   let node2: Signer;
   let node3: Signer;
+  let node4: Signer;
   let staker1: Signer;
   let staker2: Signer;
   let staker3: Signer;
+  let staker4: Signer;
   let user1: Signer;
   let treasury: Signer;
   let escrow: Escrow;
@@ -33,6 +35,7 @@ describe("MuonNodeStaking", function () {
   const peerId1 = "QmQ28Fae738pmSuhQPYtsDtwU8pKYPPgf76pSN61T3APh1";
   const peerId2 = "QmQ28Fae738pmSuhQPYtsDtwU8pKYPPgf76pSN61T3APh2";
   const peerId3 = "QmQ28Fae738pmSuhQPYtsDtwU8pKYPPgf76pSN61T3APh3";
+  const peerId4 = "QmQ28Fae738pmSuhQPYtsDtwU8pKYPPgf76pSN61T3APh4";
 
   let nodeManager: MuonNodeManager;
   let pion: PIONtest;
@@ -66,9 +69,11 @@ describe("MuonNodeStaking", function () {
       node1,
       node2,
       node3,
+      node4,
       staker1,
       staker2,
       staker3,
+      staker4,
       user1,
       treasury,
     ] = await ethers.getSigners();
@@ -212,17 +217,32 @@ describe("MuonNodeStaking", function () {
   };
 
   const mintBondedPion = async (pionAmount, pionLpAmount, _to) => {
+    if(pionLpAmount.gt(0)) {
+      await pion.connect(deployer).mint(_to.address, pionAmount);
+      await pion.connect(_to).approve(bondedPion.address, pionAmount);
+  
+      await pionLp.connect(deployer).mint(_to.address, pionLpAmount);
+      await pionLp.connect(_to).approve(bondedPion.address, pionLpAmount);
+  
+      const tx = await bondedPion
+        .connect(_to)
+        .mintAndLock(
+          [pion.address, pionLp.address],
+          [pionAmount, pionLpAmount],
+          _to.address
+        );
+      const receipt = await tx.wait();
+      const tokenId = receipt.events[0].args.tokenId.toNumber();
+      return tokenId;
+    }
     await pion.connect(deployer).mint(_to.address, pionAmount);
     await pion.connect(_to).approve(bondedPion.address, pionAmount);
-
-    await pionLp.connect(deployer).mint(_to.address, pionLpAmount);
-    await pionLp.connect(_to).approve(bondedPion.address, pionLpAmount);
 
     const tx = await bondedPion
       .connect(_to)
       .mintAndLock(
-        [pion.address, pionLp.address],
-        [pionAmount, pionLpAmount],
+        [pion.address],
+        [pionAmount],
         _to.address
       );
     const receipt = await tx.wait();
@@ -566,6 +586,62 @@ describe("MuonNodeStaking", function () {
 
       expect(lockeds2[0]).eq(lockeds1[0].sub(ONE.mul(500)));
 
+    });
+
+    it("should be able to unstake remeaning after the node is deactivated", async () => {
+      await mintBondedPion(ONE.mul(1000), ONE.mul(0), staker4);
+      await bondedPion.connect(staker4).approve(nodeStaking.address, 3);
+      await nodeStaking.connect(staker4).addMuonNode(node4.address, peerId4, 3);
+      await nodeStaking.connect(daoRole).setMuonNodeTier(staker4.address, tier2);
+      
+      const tokenId = (await nodeStaking.users(staker4.address)).tokenId;
+      const bonPionBalance = await nodeStaking.valueOfBondedToken(tokenId);
+      const minStakeAmount = await nodeStaking.minStakeAmount();
+
+      const unstakeAmount = bonPionBalance.sub(minStakeAmount.sub(ONE));
+
+      expect(bonPionBalance).to.be.eq(ONE.mul(1000));
+      expect((await nodeStaking.users(staker4.address)).balance).to.be.eq(bonPionBalance);
+      expect((await nodeManager.stakerAddressInfo(staker4.address)).active).to.be.eq(true);
+
+      const muonBalance = await pion.balanceOf(staker4.address);
+      
+      await nodeStaking.connect(staker4).unstake(unstakeAmount);
+
+      expect((await nodeManager.stakerAddressInfo(staker4.address)).active).to.be.eq(false);
+      expect((await nodeStaking.users(staker4.address)).balance).to.be.eq(0);
+      expect((await nodeStaking.users(staker4.address)).tokenId).to.be.eq(tokenId);
+      expect(await nodeStaking.valueOfBondedToken(tokenId)).to.be.eq(bonPionBalance);
+      expect(await nodeStaking.pendingUnstakes(staker4.address)).to.be.eq(unstakeAmount);
+      expect(await pion.balanceOf(staker4.address)).to.be.eq(muonBalance);
+
+      await evmIncreaseTime(60 * 60 * 24 * 14);
+
+      await nodeStaking.connect(staker4).claimUnstake();
+
+      expect(await pion.balanceOf(staker4.address)).to.be.eq(muonBalance.add(unstakeAmount));
+      expect(await nodeStaking.valueOfBondedToken(tokenId)).to.be.eq(minStakeAmount.sub(ONE));
+      expect(await nodeStaking.pendingUnstakes(staker4.address)).to.be.eq(0);
+
+      await expect(nodeStaking.connect(staker4).unstake(
+        minStakeAmount
+      )).to.be.revertedWith(
+        "Insufficient balance"
+      );
+      
+      await nodeStaking.connect(staker4).unstake(minStakeAmount.sub(ONE));
+
+      expect(await nodeStaking.pendingUnstakes(staker4.address)).to.be.eq(minStakeAmount.sub(ONE));
+      expect(await nodeStaking.valueOfBondedToken(tokenId)).to.be.eq(minStakeAmount.sub(ONE));
+
+      await evmIncreaseTime(60 * 60 * 24 * 14);
+      await nodeStaking.connect(staker4).claimUnstake();
+
+      expect(await pion.balanceOf(staker4.address)).to.be.eq(bonPionBalance);
+      expect(await nodeStaking.valueOfBondedToken(tokenId)).to.be.eq(0);
+      expect((await nodeStaking.users(staker4.address)).tokenId).to.be.eq(0);
+      expect((await nodeManager.stakerAddressInfo(staker4.address)).active).to.be.eq(false);
+      expect((await nodeStaking.users(staker4.address)).balance).to.be.eq(0);
     });
   });
 
