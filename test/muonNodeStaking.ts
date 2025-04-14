@@ -417,6 +417,31 @@ describe("MuonNodeStaking", function () {
         .eq(maxStakeAmount);
     });
 
+    it("should be able to merge bonded tokens for a staker", async () => {
+      const newTokenId = await mintBondedPion(ONE.mul(100), ONE.mul(0), user1);
+      
+      const tokenId = (await nodeStaking.users(staker2.address)).tokenId;
+      const balance = (await nodeStaking.users(staker2.address)).balance;
+      const bonPionBalance = await nodeStaking.valueOfBondedToken(tokenId);
+      const totalStaked = await nodeStaking.totalStaked();
+
+      await bondedPion
+        .connect(user1)
+        .approve(nodeStaking.address, newTokenId);
+
+      await nodeStaking.connect(user1).mergeBondedTokens(newTokenId, staker2.address);
+
+      expect(await nodeStaking.valueOfBondedToken(tokenId)).to.be.eq(
+        bonPionBalance.add(ONE.mul(100))
+      );
+      expect((await nodeStaking.users(staker2.address)).balance).to.be.eq(
+        balance.add(ONE.mul(100))
+      );
+      expect(await nodeStaking.totalStaked()).to.be.eq(
+        totalStaked.add(ONE.mul(100))
+      );
+    });
+
     it("stakers should have the ability to increase their stakes by merging another NFT", async function () {
       const nodeId = 2;
       const tokenId = (await nodeStaking.users(staker2.address)).tokenId;
@@ -445,7 +470,7 @@ describe("MuonNodeStaking", function () {
         .approve(nodeStaking.address, newTokenId);
 
       // lock tokens into the NFT
-      await nodeStaking.connect(staker2).mergeBondedTokens(newTokenId);
+      await nodeStaking.connect(staker2).mergeBondedTokens(newTokenId, staker2.address);
 
       const lockeds2 = await bondedPion.getLockedOf(tokenId, [
         pion.address,
