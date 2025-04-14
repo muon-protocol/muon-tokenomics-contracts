@@ -479,7 +479,8 @@ describe("MuonDelegatorRewards", function () {
       
       await bonMuon.connect(nodeStaker).approve(nodeStaking.address, delegationTokenId);
       await nodeStaking.connect(nodeStaker).mergeBondedTokens(
-        delegationTokenId
+        delegationTokenId,
+        nodeStaker.address
       )
       expect((await nodeStaking.users(nodeStaker.address)).balance).to.be.equal(amount.add(
         ONE.mul(1000)
