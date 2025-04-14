@@ -323,14 +323,15 @@ contract MuonNodeStaking is
      * @param tokenIdA The id of the first token to be merged.
      */
     function mergeBondedTokens(
-        uint256 tokenIdA
+        uint256 tokenIdA,
+        address staker
     ) external whenFunctionNotPaused("mergeBondedTokens") {
         require(
             bondedToken.ownerOf(tokenIdA) == msg.sender,
             "Caller is not token owner."
         );
 
-        uint256 tokenIdB = users[msg.sender].tokenId;
+        uint256 tokenIdB = users[staker].tokenId;
         require(tokenIdB != 0, "No staking found.");
         require(
             bondedToken.ownerOf(tokenIdB) == address(this),
@@ -342,7 +343,7 @@ contract MuonNodeStaking is
 
         bondedToken.merge(tokenIdA, tokenIdB);
 
-        _updateStaking(msg.sender);
+        _updateStaking(staker);
     }
 
     /**
