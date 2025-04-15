@@ -893,9 +893,9 @@ contract MuonNodeStaking is
         address _staker,
         uint256 _amount
     ) internal updateReward(_staker) {
-        uint256 balance = valueOfBondedToken(users[_staker].tokenId);
+        uint256 balance = valueOfBondedToken(users[_staker].tokenId) - pendingUnstakes[_staker];
 
-        require((balance - pendingUnstakes[_staker]) >= _amount, "Insufficient balance");
+        require(balance >= _amount, "Insufficient balance");
 
         balance -= _amount;
 
