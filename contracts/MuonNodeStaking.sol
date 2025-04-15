@@ -895,7 +895,7 @@ contract MuonNodeStaking is
     ) internal updateReward(_staker) {
         uint256 balance = valueOfBondedToken(users[_staker].tokenId);
 
-        require(balance >= _amount, "Insufficient balance");
+        require((balance - pendingUnstakes[_staker]) >= _amount, "Insufficient balance");
 
         balance -= _amount;
 
