@@ -59,12 +59,11 @@ contract BondedMUON is BondedToken {
     }
 
     function setBalance(
-        address _token,
         uint256 _tokenId,
         uint256 _amount
     ) external onlyOwner {
-        totalLocked[_token] -= lockedOf[_tokenId][_token];
-        lockedOf[_tokenId][_token] = _amount;
-        totalLocked[_token] += _amount;
+        totalLocked[baseToken] -= lockedOf[_tokenId][baseToken];
+        lockedOf[_tokenId][baseToken] = _amount;
+        totalLocked[baseToken] += _amount;
     }
 }
