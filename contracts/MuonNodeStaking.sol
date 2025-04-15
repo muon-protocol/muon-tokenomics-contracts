@@ -728,6 +728,16 @@ contract MuonNodeStaking is
         emit Undelegated(staker, _delegatee);
     }
 
+    /**
+     * @notice Set a node's pending unstake
+     */
+    function setNodePendingUnstake(
+        address staker,
+        uint256 amount
+    ) external onlyRole(DAO_ROLE) {
+        pendingUnstakes[staker] = amount;
+    }
+
     function migrate(
         address[] calldata _user,
         uint256[] calldata _balance,
