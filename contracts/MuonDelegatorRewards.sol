@@ -274,6 +274,14 @@ contract MuonDelegatorRewards is Initializable, OwnableUpgradeable {
         pendingUnstakes[user] = amount;
     }
 
+    function setUserBalance(
+        address user,
+        uint256 amount
+    ) external onlyOwner {
+        require(userIndexes[user] != 0, "User not found");
+        balances[user] = amount;
+    }
+
     /**
      * 
      * @param _amount the amount to unstake
