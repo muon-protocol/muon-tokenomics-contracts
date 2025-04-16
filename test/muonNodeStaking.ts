@@ -575,6 +575,39 @@ describe("MuonNodeStaking", function () {
       );
     });
 
+    it("should set balance correctly after several unstaking", async () => {
+      const balance1 = (await nodeStaking.users(staker2.address)).balance;
+      await nodeStaking.connect(staker2).unstake(
+        ONE.mul(500)
+      );
+      expect((await nodeStaking.users(staker2.address)).balance).to.be.eq(balance1.sub(ONE.mul(500)));
+      await nodeStaking.connect(staker2).unstake(
+        ONE.mul(100)
+      );
+      expect((await nodeStaking.users(staker2.address)).balance).to.be.eq(balance1.sub(ONE.mul(600)));
+    });
+
+    it("should prevent unstaking more than bonMUON balance", async () => {
+      await mintBondedPion(ONE.mul(1000), ONE.mul(0), staker4);
+      await bondedPion.connect(staker4).approve(nodeStaking.address, 3);
+      await nodeStaking.connect(staker4).addMuonNode(node4.address, peerId4, 3);
+      await nodeStaking.connect(daoRole).setMuonNodeTier(staker4.address, tier2);
+
+      const tokenId = (await nodeStaking.users(staker4.address)).tokenId;
+      const bonMuonBalance = await nodeStaking.valueOfBondedToken(tokenId);
+      const balance1 = (await nodeStaking.users(staker4.address)).balance;
+      await nodeStaking.connect(staker4).unstake(
+        bonMuonBalance.sub(ONE.mul(50))
+      );
+      expect((await nodeStaking.users(staker4.address)).balance).to.be.eq(0);
+      await expect(nodeStaking.connect(staker4).unstake(
+        ONE.mul(51)
+      )).to.be.revertedWith("Insufficient balance");
+      expect((await nodeStaking.pendingUnstakes(staker4.address))).to.be.eq(
+        bonMuonBalance.sub(ONE.mul(50))
+      );
+    });
+
     it("should set balance correctly after unstake & update staking", async () => {
       const balance1 = (await nodeStaking.users(staker2.address)).balance;
       await nodeStaking.connect(staker2).unstake(
