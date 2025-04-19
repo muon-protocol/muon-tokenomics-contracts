@@ -160,6 +160,27 @@ contract MuonNodeManager is
     }
 
     /**
+     * @dev Allows the admins to activate the nodes.
+     * Only callable by the ADMIN_ROLE.
+     * @param nodeId The ID of the node to be activated.
+     */
+    function activateNode(
+        uint64 nodeId
+    )
+        external
+        onlyRole(ADMIN_ROLE)
+        updateState
+        updateNodeState(nodeId)
+    {
+        require(nodes[nodeId].id == nodeId, "Node not found.");
+
+        require(!nodes[nodeId].active, "Already activated.");
+
+        nodes[nodeId].endTime = 0;
+        nodes[nodeId].active = true;
+    }
+
+    /**
      * @dev Adds a role to a given node.
      * Only callable by the DAO_ROLE.
      * @param nodeId The ID of the node.
