@@ -56,7 +56,7 @@ describe("MuonDelegatorRewards", function () {
   const userStartDates = [1729666262, 1727074262, 1724395862, 1721717462];
   const userReStakes = [false, false, true, true];
 
-  const evmIncreaseTime = async (amount) => {
+  const evmIncreaseTime = async (amount: number) => {
     await ethers.provider.send("evm_increaseTime", [amount]);
     await ethers.provider.send("evm_mine", []);
   };
@@ -458,10 +458,10 @@ describe("MuonDelegatorRewards", function () {
         .connect(user)
         .approve(muonDelegatorRewards.address, amount);
 
-      delegateTime = await time.latest()
       await muonDelegatorRewards
         .connect(user)
         .delegateToken(amount, user.address, false);
+      delegateTime = await time.latest()
     });
     it("should unstake immediately successfully", async () => {
       await muonDelegatorRewards.connect(admin).setExitPendingPeriod(0);  
@@ -490,10 +490,10 @@ describe("MuonDelegatorRewards", function () {
       ))
       const userBalance = await muon.balanceOf(user.address);
 
-      const unstakeTime =  await time.latest();
       await muonDelegatorRewards.connect(user).unstake(
         ONE.mul(50)
       );
+      const unstakeTime =  await time.latest();
 
       expect(await muonDelegatorRewards.balances(user.address)).to.be.equal(
         amount.sub(ONE.mul(50))
@@ -617,6 +617,54 @@ describe("MuonDelegatorRewards", function () {
       await expect(muonDelegatorRewards.connect(user).claimUnstake()).to.be.revertedWith(
         "No pending unstake"
       );
+    });
+
+    it("should calculate pending rewards correctly", async () => {
+      expect(await muonDelegatorRewards.startDates(user.address)).to.be.equal(
+        delegateTime
+      );
+
+      await evmIncreaseTime(10 * 24 * 60 * 60);
+
+      const now = await time.latest();
+      const lastDisTime = now - (3 * 24 * 60 * 60);
+      await muonDelegatorRewards.connect(admin).setLastDisTime(lastDisTime);
+
+      await muonDelegatorRewards.connect(user).unstake(
+        ONE.mul(50)
+      );
+      let unstakeTime1 = await time.latest();
+
+      expect(await muonDelegatorRewards.startDates(user.address)).to.be.equal(
+        unstakeTime1
+      );
+      expect(
+        await muonDelegatorRewards.connect(user).pendingUnstakes(user.address)
+      ).to.be.eq(ONE.mul(50));
+
+      const pendingRewards = amount.mul(unstakeTime1 - lastDisTime);
+      expect(await muonDelegatorRewards.pendingRewards(user.address)).to.be.equal(pendingRewards);
+      expect((await muonDelegatorRewards.pendingRewards(user.address)).div(ONE)).to.closeTo(
+        500 * 3 * 24 * 60 * 60,
+        1000
+      );
+
+      await muonDelegatorRewards.connect(user).unstake(
+        ONE.mul(100)
+      );
+      const unstakeTime2 = await time.latest();
+  
+      expect(
+        await muonDelegatorRewards.connect(user).pendingUnstakes(user.address)
+      ).to.be.eq(ONE.mul(150));
+
+      expect(await muonDelegatorRewards.pendingRewards(
+        user.address
+      )).to.be.equal(pendingRewards.add(
+        amount.sub(ONE.mul(50)).mul(unstakeTime2 - unstakeTime1)
+      ));
+
+      
     });
   });
 
@@ -1174,6 +1222,139 @@ describe("MuonDelegatorRewards", function () {
       expect(reStakes[0]).to.be.equal(userReStakes[0]);
       expect(reStakes[1]).to.be.equal(userReStakes[1]);
       expect(reStakes[2]).to.be.equal(userReStakes[2]);
+    });
+  });
+
+  describe("Distribute reward", async () => {
+    let amount: BigNumber;
+    let delegateTime: number;
+    beforeEach(async () => {
+      const now = await time.latest();
+      await muonDelegatorRewards
+        .connect(admin)
+        .bulkImport(
+          userAddresses,
+          userBalances,
+          [now, now, now, now],
+          userReStakes
+        );
+      
+      amount = ONE.mul(500);
+      await muon.connect(admin).mint(user.address, amount);
+      await muon
+        .connect(user)
+        .approve(muonDelegatorRewards.address, amount);
+
+      await muonDelegatorRewards
+        .connect(user)
+        .delegateToken(amount, user.address, false);
+      delegateTime = await time.latest()
+    });
+
+    it("should calculate rewards correctly", async () => {
+      expect(await muonDelegatorRewards.startDates(user.address)).to.be.equal(
+        delegateTime
+      );
+
+      await evmIncreaseTime(10 * 24 * 60 * 60);
+
+      const lastDisTime = await time.latest();
+      await muonDelegatorRewards.connect(admin).setLastDisTime(lastDisTime);
+
+      await evmIncreaseTime(3 * 24 * 60 * 60);
+
+      await muonDelegatorRewards.connect(user).unstake(
+        ONE.mul(50)
+      );
+      let unstakeTime1 = await time.latest();
+
+      await evmIncreaseTime(3 * 24 * 60 * 60);
+
+      expect(await muonDelegatorRewards.startDates(user.address)).to.be.equal(
+        unstakeTime1
+      );
+      expect(
+        await muonDelegatorRewards.connect(user).pendingUnstakes(user.address)
+      ).to.be.eq(ONE.mul(50));
+
+      let pendingRewards = amount.mul(unstakeTime1 - lastDisTime);
+      expect(await muonDelegatorRewards.pendingRewards(user.address)).to.be.equal(pendingRewards);
+      expect((await muonDelegatorRewards.pendingRewards(user.address)).div(ONE)).to.closeTo(
+        500 * 3 * 24 * 60 * 60,
+        1000
+      );
+
+      await muonDelegatorRewards.connect(user).unstake(
+        ONE.mul(100)
+      );
+      const unstakeTime2 = await time.latest();
+  
+      expect(
+        await muonDelegatorRewards.connect(user).pendingUnstakes(user.address)
+      ).to.be.eq(ONE.mul(150));
+
+      expect(await muonDelegatorRewards.pendingRewards(
+        user.address
+      )).to.be.equal(pendingRewards.add(
+        amount.sub(ONE.mul(50)).mul(unstakeTime2 - unstakeTime1)
+      ));
+
+      pendingRewards = await muonDelegatorRewards.pendingRewards(user.address);
+
+      await evmIncreaseTime(3 * 24 * 60 * 60);
+
+      expect((await muon.balanceOf(user.address))).to.be.eq(0)
+      const delegatorBalance = await muon.balanceOf(muonDelegatorRewards.address);
+
+      await muon.connect(admin).mint(muonDelegatorRewards.address, ONE.mul(100));
+      const disTime = await time.latest() - (1 * 24 * 60 * 60);
+      await muonDelegatorRewards.connect(admin).distribute(
+        ONE.mul(100),
+        disTime
+      );
+
+      let periodSec = disTime - lastDisTime;
+      let totalSec = pendingRewards.add(
+        ONE.mul(350).mul(disTime - unstakeTime2)
+      ).add(
+        user1Balance.mul(periodSec)
+      ).add(
+        user2Balance.mul(periodSec)
+      ).add(
+        user3Balance.mul(periodSec)
+      ).add(
+        user4Balance.mul(periodSec)
+      );
+
+      const userReward = ONE.mul(100).mul(pendingRewards.add(
+        ONE.mul(350).mul(disTime - unstakeTime2)
+      )).div(totalSec);
+
+      const user1Reward = ONE.mul(100).mul(user1Balance.mul(periodSec)).div(totalSec);
+
+      const user2Reward = ONE.mul(100).mul(user2Balance.mul(periodSec)).div(totalSec);
+
+      expect((await muon.balanceOf(user.address))).to.be.eq(
+        userReward
+      );
+      expect((await muon.balanceOf(user1.address))).to.be.eq(
+        user1Reward
+      );
+      expect((await muon.balanceOf(user2.address))).to.be.eq(
+        user2Reward
+      );
+      expect((await muon.balanceOf(user3.address))).to.be.eq(
+        0
+      );
+      expect((await muon.balanceOf(user4.address))).to.be.eq(
+        0
+      );
+
+      expect((await muon.balanceOf(muonDelegatorRewards.address))).to.be.eq(
+        delegatorBalance.add(
+          (ONE.mul(100)).sub(userReward).sub(user1Reward).sub(user2Reward)
+        )
+      );
     });
   });
 });
