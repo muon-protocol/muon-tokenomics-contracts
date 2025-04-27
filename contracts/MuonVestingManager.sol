@@ -16,7 +16,7 @@ contract MuonVestingManager is AccessControl {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant RELEASE_FOR_ROLE = keccak256("RELEASE_FOR_ROLE");
 
-    address baseToken;
+    address public baseToken;
 
     uint256 public immutable start;
     uint256 public immutable duration;
