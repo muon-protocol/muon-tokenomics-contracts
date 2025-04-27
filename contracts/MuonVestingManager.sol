@@ -35,6 +35,22 @@ contract MuonVestingManager is Ownable {
         duration = _durationSeconds;
     }
 
+    function bulkImport(
+        address[] memory _addrs,
+        uint256[] memory _balances
+    ) external onlyOwner {
+        require(_addrs.length == _balances.length, "Length mismatch");
+        
+        uint256 len = _addrs.length;
+        for (uint256 i = 0; i < len; i++) {
+            address addr = _addrs[i];
+            users[addr] = User(
+                _balances[i],
+                0
+            );
+        }
+    }
+
     /**
      * @dev Release the tokens that have already vested.
      *
