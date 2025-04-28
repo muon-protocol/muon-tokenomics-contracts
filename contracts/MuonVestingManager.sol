@@ -22,6 +22,7 @@ contract MuonVestingManager is AccessControl {
     uint256 public immutable duration;
 
     mapping(address => User) public users;
+    mapping(address => bool) public releaseForApproved;
 
     event TokenReleased(address indexed user, uint256 amount);
 
@@ -74,6 +75,14 @@ contract MuonVestingManager is AccessControl {
     }
 
     /**
+     * @dev User approves/revokes releaseFor
+     * @param approved set true to approve and false to revoke 
+     */
+    function setApproveReleaseFor(bool approved) external {
+        releaseForApproved[msg.sender] = approved;
+    }
+
+    /**
      * @dev Release the tokens on a user's behalf.
      *
      * Emits a {TokenReleased} event.
@@ -82,6 +91,8 @@ contract MuonVestingManager is AccessControl {
         address user,
         uint256 amount
     ) external onlyRole(RELEASE_FOR_ROLE) {
+        require(releaseForApproved[user], "Not approved");
+
         uint256 maxReleasableAmount = releasable(user);
 
         require(
