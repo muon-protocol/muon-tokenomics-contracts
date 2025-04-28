@@ -9,7 +9,7 @@ contract MuonVestingManager is AccessControl {
     using SafeERC20 for IERC20;
 
     struct User {
-        uint256 totalAllocation;
+        uint256 vestedAmount;
         uint256 released;
     }
 
@@ -137,14 +137,14 @@ contract MuonVestingManager is AccessControl {
         address user,
         uint256 timestamp
     ) internal view returns (uint256) {
-        uint256 totalAllocation = users[user].totalAllocation;
+        uint256 vestedAmount = users[user].vestedAmount;
 
         if (timestamp < start) {
             return 0;
         } else if (timestamp >= end()) {
-            return totalAllocation;
+            return vestedAmount;
         } else {
-            return (totalAllocation * (timestamp - start)) / duration;
+            return (vestedAmount * (timestamp - start)) / duration;
         }
     }
 }
