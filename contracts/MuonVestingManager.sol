@@ -138,13 +138,13 @@ contract MuonVestingManager is AccessControl {
      * @dev Getter for the releasable amount.
      */
     function releasable(address user) public view returns (uint256) {
-        return _vestingSchedule(user, block.timestamp) - released(user);
+        return _maxReleasableAmount(user, block.timestamp) - released(user);
     }
 
     /**
      * @dev implementation of the vesting formula. This returns the total amount can be released, as a function of time
      */
-    function _vestingSchedule(
+    function _maxReleasableAmount(
         address user,
         uint256 timestamp
     ) internal view returns (uint256) {
