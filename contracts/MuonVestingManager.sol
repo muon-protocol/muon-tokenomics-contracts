@@ -34,6 +34,7 @@ contract MuonVestingManager is AccessControl {
         uint256 _startTimestamp,
         uint256 _durationSeconds
     ) {
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
 
         baseToken = _baseToken;
