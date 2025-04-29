@@ -60,23 +60,12 @@ contract MuonVestingManager is AccessControl {
      * Emits a {TokenReleased} event.
      */
     function release(uint256 amount) external {
-        uint256 maxReleasableAmount = releasable(msg.sender);
-
-        require(
-            amount <= maxReleasableAmount,
-            "amount exceeds releasable amount!"
-        );
-
-        users[msg.sender].released += amount;
-
-        IERC20(baseToken).safeTransfer(msg.sender, amount);
-
-        emit TokenReleased(msg.sender, amount);
+        _release(msg.sender, amount);
     }
 
     /**
      * @dev User approves/revokes releaseFor
-     * @param approved set true to approve and false to revoke 
+     * @param approved set true to approve and false to revoke
      */
     function setApproveReleaseFor(bool approved) external {
         releaseForApproved[msg.sender] = approved;
@@ -93,18 +82,7 @@ contract MuonVestingManager is AccessControl {
     ) external onlyRole(RELEASE_FOR_ROLE) {
         require(releaseForApproved[user], "Not approved");
 
-        uint256 maxReleasableAmount = releasable(user);
-
-        require(
-            amount <= maxReleasableAmount,
-            "amount exceeds releasable amount!"
-        );
-
-        users[user].released += amount;
-
-        IERC20(baseToken).safeTransfer(msg.sender, amount);
-
-        emit TokenReleased(user, amount);
+        _release(user, amount);
     }
 
     function adminWithdraw(
@@ -139,6 +117,21 @@ contract MuonVestingManager is AccessControl {
      */
     function releasable(address user) public view returns (uint256) {
         return _maxReleasableAmount(user, block.timestamp) - released(user);
+    }
+
+    function _release(address _user, uint256 _amount) internal {
+        uint256 maxReleasableAmount = releasable(_user);
+
+        require(
+            _amount <= maxReleasableAmount,
+            "amount exceeds releasable amount!"
+        );
+
+        users[_user].released += _amount;
+
+        IERC20(baseToken).safeTransfer(msg.sender, _amount);
+
+        emit TokenReleased(_user, _amount);
     }
 
     /**
