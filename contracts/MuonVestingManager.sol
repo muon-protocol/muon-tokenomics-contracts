@@ -4,8 +4,9 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 
-contract MuonVestingManager is AccessControl {
+contract MuonVestingManager is AccessControl, Pausable {
     using SafeERC20 for IERC20;
 
     struct User {
@@ -99,6 +100,14 @@ contract MuonVestingManager is AccessControl {
         }
     }
 
+    function pause() external onlyRole(ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(ADMIN_ROLE) {
+        _unpause();
+    }
+
     /**
      * @dev Getter for the end timestamp.
      */
@@ -120,7 +129,7 @@ contract MuonVestingManager is AccessControl {
         return _maxReleasableAmount(user, block.timestamp) - released(user);
     }
 
-    function _release(address _user, uint256 _amount) internal {
+    function _release(address _user, uint256 _amount) internal whenNotPaused {
         uint256 maxReleasableAmount = releasable(_user);
 
         require(
