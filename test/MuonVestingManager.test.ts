@@ -301,8 +301,8 @@ describe("MuonVestingManager", function () {
     });
 
     it("should be able to release on behalf of a user if it's approved", async () => {
-      const endTime = Number(await muonVesting.end());
-      await evmIncreaseTime(endTime - (await time.latest()));
+      const startTime = Number(await muonVesting.start());
+      await evmIncreaseTime(startTime - (await time.latest()));
 
       await evmIncreaseTime(24 * 60 * 60);
 
@@ -333,8 +333,8 @@ describe("MuonVestingManager", function () {
     });
 
     it("should be able to release on behalf of a user if it's not approved", async () => {
-      const endTime = Number(await muonVesting.end());
-      await evmIncreaseTime(endTime - (await time.latest()));
+      const startTime = Number(await muonVesting.start());
+      await evmIncreaseTime(startTime - (await time.latest()));
 
       await evmIncreaseTime(24 * 60 * 60);
 
@@ -365,8 +365,8 @@ describe("MuonVestingManager", function () {
     });
 
     it("should be able to revoke releaseFor", async () => {
-      const endTime = Number(await muonVesting.end());
-      await evmIncreaseTime(endTime - (await time.latest()));
+      const startTime = Number(await muonVesting.start());
+      await evmIncreaseTime(startTime - (await time.latest()));
 
       await evmIncreaseTime(24 * 60 * 60);
 
@@ -397,6 +397,8 @@ describe("MuonVestingManager", function () {
 
       await muonVesting.connect(user2).setApproveReleaseFor(false);
 
+      await evmIncreaseTime(24 * 60 * 60);
+
       const newReleasableAmount = await muonVesting.releasable(user2.address);
 
       await expect(
@@ -409,6 +411,103 @@ describe("MuonVestingManager", function () {
       expect(await muon.balanceOf(muonVesting.address)).to.be.equal(
         ONE.mul(3000).sub(releasableAmount)
       );
+    });
+  });
+
+  describe("Pause functions", async () => {
+    it("should not release tokens if it's paused", async () => {
+      expect(await muon.balanceOf(user1.address)).to.be.equal(0);
+      expect(await muon.balanceOf(muonVesting.address)).to.be.equal(
+        ONE.mul(3000)
+      );
+
+      await muonVesting.connect(admin).pause();
+
+      await expect(muonVesting
+        .connect(user1)
+        .release(ONE)).to.be.revertedWith("Pausable: paused");
+
+      expect((await muonVesting.users(user1.address)).released).to.be.equal(0);
+      expect(await muon.balanceOf(user1.address)).to.be.equal(0);
+      expect(await muon.balanceOf(muonVesting.address)).to.be.equal(
+        ONE.mul(3000)
+      );
+    });
+
+    it("should not releaseFor tokens if it's paused", async () => {
+      expect(await muon.balanceOf(user1.address)).to.be.equal(0);
+      expect(await muon.balanceOf(muonVesting.address)).to.be.equal(
+        ONE.mul(3000)
+      );
+
+      await muonVesting.connect(admin).pause();
+
+      await muonVesting.connect(admin).grantRole(
+        await muonVesting.RELEASE_FOR_ROLE(),
+        user.address
+      );
+
+      await muonVesting.connect(user1).setApproveReleaseFor(true);
+
+      await expect(muonVesting
+        .connect(user)
+        .releaseFor(user1.address, ONE)).to.be.revertedWith("Pausable: paused");
+
+      expect((await muonVesting.users(user1.address)).released).to.be.equal(0);
+      expect(await muon.balanceOf(user1.address)).to.be.equal(0);
+      expect(await muon.balanceOf(muonVesting.address)).to.be.equal(
+        ONE.mul(3000)
+      );
+    });
+  });
+
+  describe("Admin operations", async () => {
+    it("should allow admin to pause contract", async () => {
+      expect(await muonVesting.paused()).to.be.eq(false);
+      await muonVesting.connect(admin).pause();
+      expect(await muonVesting.paused()).to.be.eq(true);
+    });
+    it("should not allow non-admin to pause contract", async () => {
+      expect(await muonVesting.paused()).to.be.eq(false);
+      const ADMIN_ROLE = await muonVesting.ADMIN_ROLE();
+      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${ADMIN_ROLE}`;
+      await expect(muonVesting.connect(user).pause()).to.be.revertedWith(revertMSG);
+      expect(await muonVesting.paused()).to.be.eq(false);
+    });
+    it("should allow admin to withdraw tokens", async () => {
+      expect(await muon.balanceOf(muonVesting.address)).to.be.equal(
+        ONE.mul(3000)
+      );
+      expect(await muon.balanceOf(user.address)).to.be.equal(0);
+      
+      await muonVesting.connect(admin).adminWithdraw(ONE.mul(100), user.address, muon.address);
+
+      expect(await muon.balanceOf(muonVesting.address)).to.be.equal(
+        ONE.mul(3000 - 100)
+      );
+      expect(await muon.balanceOf(user.address)).to.be.equal(ONE.mul(100));
+    });
+    it("should not allow non-admin to withdraw tokens", async () => {
+      expect(await muon.balanceOf(muonVesting.address)).to.be.equal(
+        ONE.mul(3000)
+      );
+      expect(await muon.balanceOf(user.address)).to.be.equal(0);
+      expect(await muon.balanceOf(admin.address)).to.be.equal(0);
+      
+      const ADMIN_ROLE = await muonVesting.ADMIN_ROLE();
+      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${ADMIN_ROLE}`;
+      await expect(
+        muonVesting.connect(user).adminWithdraw(ONE.mul(100), user.address, muon.address)
+      ).to.be.revertedWith(revertMSG);
+      await expect(
+        muonVesting.connect(user).adminWithdraw(ONE.mul(100), admin.address, muon.address)
+      ).to.be.revertedWith(revertMSG);
+
+      expect(await muon.balanceOf(muonVesting.address)).to.be.equal(
+        ONE.mul(3000)
+      );
+      expect(await muon.balanceOf(user.address)).to.be.equal(0);
+      expect(await muon.balanceOf(admin.address)).to.be.equal(0);
     });
   });
 });
