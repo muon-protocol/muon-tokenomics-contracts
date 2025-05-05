@@ -56,6 +56,17 @@ contract MuonVestingManager is AccessControl, Pausable {
         }
     }
 
+    function editUser(
+        address _user,
+        uint256 _vestedAmount,
+        uint256 _released
+    ) external onlyRole(ADMIN_ROLE) {
+        require(_released <= _vestedAmount, "Invalid released amount");
+        
+        users[_user].vestedAmount = _vestedAmount;
+        users[_user].released = _released;
+    }
+
     /**
      * @dev Release the tokens that have already vested.
      *

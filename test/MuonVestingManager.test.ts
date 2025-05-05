@@ -509,5 +509,63 @@ describe("MuonVestingManager", function () {
       expect(await muon.balanceOf(user.address)).to.be.equal(0);
       expect(await muon.balanceOf(admin.address)).to.be.equal(0);
     });
+    it("should allow admin to edit users", async () => {
+      expect((await muonVesting.users(user1.address)).vestedAmount).to.be.equal(user1Balance);
+      expect((await muonVesting.users(user1.address)).released).to.be.equal(0);
+
+      await muonVesting.connect(admin).editUser(user1.address, user1Balance, ONE.mul(10));
+
+      expect((await muonVesting.users(user1.address)).vestedAmount).to.be.equal(user1Balance);
+      expect((await muonVesting.users(user1.address)).released).to.be.equal(ONE.mul(10));
+
+      await muonVesting.connect(admin).editUser(user1.address, 0, 0);
+
+      expect((await muonVesting.users(user1.address)).vestedAmount).to.be.equal(0);
+      expect((await muonVesting.users(user1.address)).released).to.be.equal(0);
+
+      await muonVesting.connect(admin).editUser(user1.address, ONE.mul(30), ONE.mul(10));
+
+      expect((await muonVesting.users(user1.address)).vestedAmount).to.be.equal(ONE.mul(30));
+      expect((await muonVesting.users(user1.address)).released).to.be.equal(ONE.mul(10));
+
+      await expect(
+        muonVesting.connect(admin).editUser(user1.address, ONE.mul(30), ONE.mul(40))
+      ).to.be.revertedWith("Invalid released amount");
+
+      expect((await muonVesting.users(user1.address)).vestedAmount).to.be.equal(ONE.mul(30));
+      expect((await muonVesting.users(user1.address)).released).to.be.equal(ONE.mul(10));
+
+      expect((await muonVesting.users(user.address)).vestedAmount).to.be.equal(0);
+      expect((await muonVesting.users(user.address)).released).to.be.equal(0);
+
+      await muonVesting.connect(admin).editUser(user.address, ONE.mul(3000), ONE.mul(10));
+
+      expect((await muonVesting.users(user.address)).vestedAmount).to.be.equal(ONE.mul(3000));
+      expect((await muonVesting.users(user.address)).released).to.be.equal(ONE.mul(10));
+    });
+    it("should not allow non-admin to edit users", async () => {
+      expect((await muonVesting.users(user1.address)).vestedAmount).to.be.equal(user1Balance);
+      expect((await muonVesting.users(user1.address)).released).to.be.equal(0);
+
+      const ADMIN_ROLE = await muonVesting.ADMIN_ROLE();
+      const revertMSG = `AccessControl: account ${user.address.toLowerCase()} is missing role ${ADMIN_ROLE}`;
+
+      await expect(
+        muonVesting.connect(user).editUser(user1.address, user1Balance, ONE.mul(10))
+      ).to.be.revertedWith(revertMSG);
+
+      expect((await muonVesting.users(user1.address)).vestedAmount).to.be.equal(user1Balance);
+      expect((await muonVesting.users(user1.address)).released).to.be.equal(0);
+
+      expect((await muonVesting.users(user.address)).vestedAmount).to.be.equal(0);
+      expect((await muonVesting.users(user.address)).released).to.be.equal(0);
+
+      await expect(
+        muonVesting.connect(user).editUser(user.address, ONE.mul(10), 0)
+      ).to.be.revertedWith(revertMSG);
+
+      expect((await muonVesting.users(user.address)).vestedAmount).to.be.equal(0);
+      expect((await muonVesting.users(user.address)).released).to.be.equal(0);
+    });
   });
 });
